@@ -1,9 +1,9 @@
 # dpdk-demo01
 
 
-*mkdir -p /dev/hugepages
-*mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
-echo 64 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+mkdir -p /dev/hugepages  
+mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages  
+echo 64 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages  
 
 root@yockgenm-VirtualBox:/home/yockgenm/dpdk# echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
 root@yockgenm-VirtualBox:/home/yockgenm/dpdk# python3 ./usertools/dpdk-devbind.py -b vfio-pci 0000:00:08.0
