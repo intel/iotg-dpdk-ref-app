@@ -3,6 +3,10 @@ HARDWARE/VM PLATFORM
 VM:VirtualBox OS: UBUNTU 20.04  
 NIC: 4 (1 Primary Bridge Mode, 3 INTERNAL - for dpdk prototype)  
 
+INSTALL DPDK
+====================
+https://core.dpdk.org/doc/quick-start/
+
 SETUP ENVIRONMENT
 ====================
 sudoer yourself - as DPDK need root most of times 
@@ -10,7 +14,7 @@ sudoer yourself - as DPDK need root most of times
 sudo -i
 
 Huge Page
----------------
+----------
 mkdir -p /dev/hugepages  
 mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages  
 echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages  
