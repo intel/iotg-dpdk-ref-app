@@ -11,9 +11,9 @@ sudo -i
 
 Huge Page
 ---------------
-mkdir -p /dev/hugepages
-mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
-echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+mkdir -p /dev/hugepages  
+mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages  
+echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages  
 
 
 Bring Down NIC for DPDK prototype
