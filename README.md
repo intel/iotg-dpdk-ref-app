@@ -1,6 +1,3 @@
-# dpdk-demo01
-
-
 HARDWARE/VM PLATFORM
 =====================
 VM:VirtualBox OS: UBUNTU 20.04
