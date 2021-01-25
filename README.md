@@ -18,20 +18,20 @@ echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepage
 
 Bring Down NIC for DPDK prototype
 ---------------------------------
-root@yockgenm-VirtualBox:/home/yockgenm/dpdk# ifconfig enp0s8 down  
-root@yockgenm-VirtualBox:/home/yockgenm/dpdk# ifconfig enp0s9 down  
+/home/yockgenm/dpdk# ifconfig enp0s8 down  
+/home/yockgenm/dpdk# ifconfig enp0s9 down  
 
 Enable unsafe iommu mode (need study why such)
 ---------------------------------------------
-root@yockgenm-VirtualBox:/home/yockgenm/dpdk# echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode  
+echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode  
 
 Bind Down NICs to DPDK compatible driver
 -------------------------------------------
-root@yockgenm-VirtualBox:/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -b vfio-pci 0000:00:08.0  
-root@yockgenm-VirtualBox:/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -b vfio-pci 0000:00:09.0  
+/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -b vfio-pci 0000:00:08.0  
+/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -b vfio-pci 0000:00:09.0  
 
 To confirm:
-root@yockgenm-VirtualBox:/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -s  
+/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -s  
 
 RUN L2FWD 
 ==========
