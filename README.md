@@ -1,7 +1,7 @@
 HARDWARE/VM PLATFORM
 =====================
-VM:VirtualBox OS: UBUNTU 20.04
-NIC: 4 (1 Primary Bridge Mode, 3 INTERNAL - for dpdk prototype)
+VM:VirtualBox OS: UBUNTU 20.04  
+NIC: 4 (1 Primary Bridge Mode, 3 INTERNAL - for dpdk prototype)  
 
 SETUP ENVIRONMENT
 ====================
