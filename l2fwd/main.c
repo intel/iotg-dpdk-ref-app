@@ -115,10 +115,98 @@ struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
 /* A tsc-based timer responsible for triggering statistics printout */
 static uint64_t timer_period = 10; /* default period is 10 seconds */
 
+
+static void debug0(const char* format,...){
+  return;
+  char buffer[1000];
+  va_list args;
+  va_start (args, format);
+  vsnprintf (buffer, 999, format, args);
+  printf ("%s",buffer); 
+  va_end(args);
+  
+}
+
+static void
+extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
+{
+
+       struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
+
+        //if (eth_hdr->ether_type == 8) return;
+
+        //yockgen: extracting packet content    
+        printf ("\n------------------------------------------");
+        printf ("\nbatch: %d of %d",rx_batch_idx,rx_batch_ttl);
+        printf("\nExtacting Packet:\n");
+      
+        printf ("\nEthernet type=%d",eth_hdr->ether_type);
+       
+
+        int datalen = rte_pktmbuf_pkt_len(m);  
+        printf ("\nPayload Data Size=%d",datalen);
+
+        struct rte_ether_addr src01 =  eth_hdr->s_addr;
+        printf("\nSOURCE MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
+                                src01.addr_bytes[0],
+                                src01.addr_bytes[1],
+                                src01.addr_bytes[2],
+                                src01.addr_bytes[3],
+                                src01.addr_bytes[4],
+                                src01.addr_bytes[5]);
+
+        struct rte_ether_addr dst01 =  eth_hdr->d_addr;
+        printf("\nDESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
+                                dst01.addr_bytes[0],
+                                dst01.addr_bytes[1],
+                                dst01.addr_bytes[2],
+                                dst01.addr_bytes[3],
+                                dst01.addr_bytes[4],
+                                dst01.addr_bytes[5]);
+
+
+         
+
+        if (RTE_ETH_IS_IPV4_HDR(m->packet_type)) {
+
+                                 struct rte_ipv4_hdr* ipv4_hdr = rte_pktmbuf_mtod_offset(m, struct rte_ipv4_hdr *, sizeof(struct rte_ether_hdr));
+                                 rte_be32_t ipTmp = ipv4_hdr->src_addr;
+                                 printf ("\nIPV4=%d\n",ipTmp);
+
+                                 unsigned char bytes[4];
+                                 bytes[0] = ipTmp & 0xFF;
+                                 bytes[1] = (ipTmp >> 8) & 0xFF;
+                                 bytes[2] = (ipTmp >> 16) & 0xFF;
+                                 bytes[3] = (ipTmp >> 24) & 0xFF;
+                                 printf("\nIP:%d.%d.%d.%d", bytes[3], bytes[2], bytes[1], bytes[0]);
+        }else {
+                              printf("\nNot IPV4 Packet");
+        }
+
+
+
+
+}
+
+static long diff_us(struct timespec t1, struct timespec t2)
+{
+    struct timespec diff;
+    if (t2.tv_nsec-t1.tv_nsec < 0) {
+        diff.tv_sec  = t2.tv_sec - t1.tv_sec - 1;
+        diff.tv_nsec = t2.tv_nsec - t1.tv_nsec + 1000000000;
+    } else {
+        diff.tv_sec  = t2.tv_sec - t1.tv_sec;
+        diff.tv_nsec = t2.tv_nsec - t1.tv_nsec;
+    }
+    return (diff.tv_sec * 1000000.0 + diff.tv_nsec / 1000.0);
+}
+
+
 /* Print out statistics on packets dropped */
 static void
 print_stats(void)
 {
+        
 	uint64_t total_packets_dropped, total_packets_tx, total_packets_rx;
 	unsigned portid;
 
@@ -200,61 +288,9 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 	int sent;
 	struct rte_eth_dev_tx_buffer *buffer;
 
-        
-        struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
 
-if (eth_hdr->ether_type != 8){
-
-        //yockgen: extracting packet content    
-        printf ("\n------------------------------------------\n");
-        printf("\nExtacting Packet:\n");
-      
-        printf ("\nEthernet type=%d",eth_hdr->ether_type);
-       
-
-        int datalen = rte_pktmbuf_pkt_len(m);  
-        printf ("\nPayload Data Size=%d",datalen);
-
-        struct rte_ether_addr src01 =  eth_hdr->s_addr;
-        printf("\nSOURCE MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
-                                src01.addr_bytes[0],
-                                src01.addr_bytes[1],
-                                src01.addr_bytes[2],
-                                src01.addr_bytes[3],
-                                src01.addr_bytes[4],
-                                src01.addr_bytes[5]);
-
-        struct rte_ether_addr dst01 =  eth_hdr->d_addr;
-        printf("\nDESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
-                                dst01.addr_bytes[0],
-                                dst01.addr_bytes[1],
-                                dst01.addr_bytes[2],
-                                dst01.addr_bytes[3],
-                                dst01.addr_bytes[4],
-                                dst01.addr_bytes[5]);
-
-
-         
-
-        if (RTE_ETH_IS_IPV4_HDR(m->packet_type)) {
-
-                                 struct rte_ipv4_hdr* ipv4_hdr = rte_pktmbuf_mtod_offset(m, struct rte_ipv4_hdr *, sizeof(struct rte_ether_hdr));
-                                 rte_be32_t ipTmp = ipv4_hdr->src_addr;
-                                 printf ("\nIPV4=%d\n",ipTmp);
-
-                                 unsigned char bytes[4];
-                                 bytes[0] = ipTmp & 0xFF;
-                                 bytes[1] = (ipTmp >> 8) & 0xFF;
-                                 bytes[2] = (ipTmp >> 16) & 0xFF;
-                                 bytes[3] = (ipTmp >> 24) & 0xFF;
-                                 printf("\nIP:%d.%d.%d.%d", bytes[3], bytes[2], bytes[1], bytes[0]);
-        }else {
-                              printf("\nNot IPV4 Packet\n");
-        }
-
-
-}
 	dst_port = l2fwd_dst_ports[portid];
+        //printf("\ndst_port id =%d", dst_port);
 
 	if (mac_updating)
 		l2fwd_mac_updating(m, dst_port);
@@ -350,26 +386,45 @@ l2fwd_main_loop(void)
 		 */
 		for (i = 0; i < qconf->n_rx_port; i++) {
 
+                        struct timespec start, end;
+                        clock_gettime(CLOCK_MONOTONIC, &start);
+
+ 
 			portid = qconf->rx_port_list[i];
 			nb_rx = rte_eth_rx_burst(portid, 0,
 						 pkts_burst, MAX_PKT_BURST);
 
 			port_statistics[portid].rx += nb_rx;
 			port_statistics[portid].yockgen = nb_rx;
-                        
-                       if (nb_rx>10){
-                             printf("\n%d. yockgen got rx = %d", iCounter, nb_rx);
-                             iCounter++;
-                        }
 
+ 
+                        int datalen = 0;
+                        const int mx_tmp = 200; //important: filter only big packet for easy tracking, feel free to change
 			for (j = 0; j < nb_rx; j++) {
 				m = pkts_burst[j];
 				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
-				l2fwd_simple_forward(m, portid);
+                                datalen = rte_pktmbuf_pkt_len(m);
+ 
+                                if (datalen>mx_tmp)  { 
+                                    extract_l2packet(m,j+1,nb_rx);
+                                }
+                               //printf("\nl2fwd_simple_foward called!");
+                               l2fwd_simple_forward(m, portid);
+
+
 			}
+
+                        clock_gettime(CLOCK_MONOTONIC, &end);
+                        long timeElapsed = diff_us(end, start);
+                        if (nb_rx>0 && datalen>mx_tmp)
+                            printf("\nlcore id=%d portid=%d packet#=%d elapsed=%ld(micro seconds)\n",lcore_id,portid,nb_rx,timeElapsed); 
+
+
 		}
 	}
 }
+
+
 
 static int
 l2fwd_launch_one_lcore(__rte_unused void *dummy)
@@ -824,7 +879,8 @@ main(int argc, char **argv)
 		printf("Lcore %u: RX port %u TX port %u\n", rx_lcore_id,
 		       portid, l2fwd_dst_ports[portid]);
 	}
-
+        
+        //exit(1); 
 	nb_mbufs = RTE_MAX(nb_ports * (nb_rxd + nb_txd + MAX_PKT_BURST +
 		nb_lcores * MEMPOOL_CACHE_SIZE), 8192U);
 
