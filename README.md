@@ -2,6 +2,7 @@ HARDWARE/VM PLATFORM
 =====================
 VM:VirtualBox OS: UBUNTU 20.04  
 NIC: 4 (1 Primary Bridge Mode, 3 INTERNAL - for dpdk prototype)  
+Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 02)  - all 4 
 
 INSTALL DPDK
 ====================
