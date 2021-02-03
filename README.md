@@ -46,8 +46,8 @@ make static
 run:  
 sudo /home/yockgen/dpdk/examples/l2fwd/build/listener -l 2-3 -n 1 -a 0000:00:08.0 -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1
 
-If you want to run using socket level PMD like AF_INET, AF_XDP (mean still through Linux kernel and share NIC with other non-DPDK app), please do not bring down the interface (ifconfig xxx down) and ignore the dpdk-devbind.py steps:
-sudo /home/yockgen/dpdk-demo01/l2fwd/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s3  -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1
+If you want to run using socket level PMD like AF_INET, AF_XDP (mean still through Linux kernel and share NIC with other non-DPDK app), please do not bring down the interface (ifconfig xxx down) and ignore the dpdk-devbind.py steps:  
+sudo /home/yockgen/dpdk-demo01/l2fwd/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s3  -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1  
 
 
 
