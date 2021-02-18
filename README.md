@@ -48,7 +48,7 @@ make static
 run:  
 sudo /home/yockgen/dpdk/examples/listener/build/listener -l 2-3 -n 1 -a 0000:00:08.0 -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1
 
-If you want to run using socket level PMD like AF_INET, AF_XDP (mean still through Linux kernel and share NIC with other non-DPDK app), please do not bring down the interface (ifconfig xxx down) and ignore the dpdk-devbind.py steps, run following:  
+If you want to run using bifurcated level PMD like AF_PACKET, AF_XDP (mean still through Linux kernel and share NIC with other non-DPDK app), please do not bring down the interface (ifconfig xxx down) and ignore the dpdk-devbind.py steps, run following:  
 
 sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8  -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1  
 
@@ -62,7 +62,7 @@ make static
 run:  
 sudo /home/yockgen/dpdk/examples/talker/build/talker -l 1 -n 1 -a 0000:00:09.0 -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1 -d 08:00:27:cf:69:3e  
 
-If you want to run using socket level PMD like AF_INET, AF_XDP (mean still through Linux kernel and share NIC with other non-DPDK app), please do not bring down the interface (ifconfig xxx down) and ignore the dpdk-devbind.py steps, run following:  
+If you want to run using bifurcated level PMD like AF_PACKET, AF_XDP (mean still through Linux kernel and share NIC with other non-DPDK app), please do not bring down the interface (ifconfig xxx down) and ignore the dpdk-devbind.py steps, run following:  
 
 sudo /home/yockgen/dpdk-demo01/l2fwd/build/talker -l 1 -n 1 --vdev=net_af_xdp1,iface=enp0s9 -- -p 0x1 -T 1 -d 08:00:27:cf:69:3e  
 
