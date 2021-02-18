@@ -115,6 +115,10 @@ struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
 static uint64_t timer_period = 10; /* default period is 10 seconds */
 
 
+/*Destination mac address*/
+static uint8_t dst_mac_addr[6] = {0x00,0x00,0x00,0x00,0x00,0x00};
+
+
 static void debug0(const char* format,...){
   return;
   char buffer[1000];
@@ -415,8 +419,11 @@ talker_main_loop(void)
 	struct Message obj = {{'Y','O','C','K','G','E','N','2','0','2','1'}};
 	struct Message *msg;
 	struct rte_ether_addr s_addr = {{0x14,0x02,0xEC,0x89,0x8D,0x24}};
-	struct rte_ether_addr d_addr = {{0x14,0x02,0xEC,0x89,0xED,0x54}};
-	uint16_t ether_type = 0x0a00;
+	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
+        //uint8_t dst_mac_addr[6] = {0x00,0x00,0x00,0x00,0x00,0x00};
+
+        
+	uint16_t ether_type = 0x0800;//0x0a00;
 
         int BURST_SIZE=12;
         struct rte_mbuf * pkt[BURST_SIZE];
@@ -436,7 +443,15 @@ talker_main_loop(void)
 	}
 
         uint16_t nb_tx = rte_eth_tx_burst(0,0,pkt,BURST_SIZE);
-        printf("\nSending Packet...%d\n", nb_tx);
+
+        printf("\nSending Packet To DESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                                eth_hdr->d_addr.addr_bytes[0],
+                                eth_hdr->d_addr.addr_bytes[1],
+                                eth_hdr->d_addr.addr_bytes[2],
+                                eth_hdr->d_addr.addr_bytes[3],
+                                eth_hdr->d_addr.addr_bytes[4],
+                                eth_hdr->d_addr.addr_bytes[5]);
+        //printf("\nSending Packet...%d\n", nb_tx);
 
         for(i=0;i<BURST_SIZE;i++)
 		rte_pktmbuf_free(pkt[i]);
@@ -456,12 +471,13 @@ l2fwd_launch_one_lcore(__rte_unused void *dummy)
 
 /* display usage */
 static void
-l2fwd_usage(const char *prgname)
+talker_usage(const char *prgname)
 {
 	printf("%s [EAL options] -- -p PORTMASK [-q NQ]\n"
 	       "  -p PORTMASK: hexadecimal bitmask of ports to configure\n"
 	       "  -q NQ: number of queue (=ports) per lcore (default is 1)\n"
 	       "  -T PERIOD: statistics will be refreshed each PERIOD seconds (0 to disable, 10 default, 86400 maximum)\n"
+               "  -D Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e "
 	       "  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)\n"
 	       "      When enabled:\n"
 	       "       - The source MAC address is replaced by the TX port MAC address\n"
@@ -574,10 +590,46 @@ l2fwd_parse_timer_period(const char *q_arg)
 	return n;
 }
 
+static int talker_parse_dst_mac(const char *q_arg)
+{
+
+  int n = -5;
+  //printf ("\ndestination mac = %s\n", q_arg);
+
+
+  char dst_mac_str[] = "000000000000";//"00a05056a810";
+
+  for (int i =0,j=0; i <17; i++)
+  {
+     if (q_arg[i] != ':')
+       dst_mac_str[j++] = q_arg[i];
+     else if (q_arg[i] == ':')
+       n++;
+
+  }
+
+  char dummy[3] = "00";
+  int j = 0;
+  uint8_t num = 0;
+  for(int k=0;k<6;k++)
+  {
+        for(int i=0;i<2;i++)
+            dummy[i] = dst_mac_str[i+j];
+        num = strtol(dummy, NULL, 16);
+        j=j+2;
+        //printf("0x%02x\n", num);
+        dst_mac_addr[k] = num;
+
+  }
+
+  return n;
+}
+
 static const char short_options[] =
 	"p:"  /* portmask */
 	"q:"  /* number of queues */
 	"T:"  /* timer period */
+        "d:"  /* destination mac adddress */ 
 	;
 
 #define CMD_LINE_OPT_MAC_UPDATING "mac-updating"
@@ -602,7 +654,7 @@ static const struct option lgopts[] = {
 
 /* Parse the argument given in the command line of the application */
 static int
-l2fwd_parse_args(int argc, char **argv)
+talker_parse_args(int argc, char **argv)
 {
 	int opt, ret, timer_secs;
 	char **argvopt;
@@ -615,13 +667,14 @@ l2fwd_parse_args(int argc, char **argv)
 	while ((opt = getopt_long(argc, argvopt, short_options,
 				  lgopts, &option_index)) != EOF) {
 
+                //printf("\n\nyockgen=%d %s\n\n",opt,optarg);    
 		switch (opt) {
 		/* portmask */
 		case 'p':
 			l2fwd_enabled_port_mask = l2fwd_parse_portmask(optarg);
 			if (l2fwd_enabled_port_mask == 0) {
 				printf("invalid portmask\n");
-				l2fwd_usage(prgname);
+				talker_usage(prgname);
 				return -1;
 			}
 			break;
@@ -631,7 +684,7 @@ l2fwd_parse_args(int argc, char **argv)
 			l2fwd_rx_queue_per_lcore = l2fwd_parse_nqueue(optarg);
 			if (l2fwd_rx_queue_per_lcore == 0) {
 				printf("invalid queue number\n");
-				l2fwd_usage(prgname);
+				talker_usage(prgname);
 				return -1;
 			}
 			break;
@@ -641,24 +694,36 @@ l2fwd_parse_args(int argc, char **argv)
 			timer_secs = l2fwd_parse_timer_period(optarg);
 			if (timer_secs < 0) {
 				printf("invalid timer period\n");
-				l2fwd_usage(prgname);
+				talker_usage(prgname);
 				return -1;
 			}
 			timer_period = timer_secs;
 			break;
 
-		/* long options */
+                /* packet destination MAC address  */
+		case 'd':
+                      ret  = talker_parse_dst_mac(optarg);
+                      if (ret){
+				printf("invalid destination mac address, please use format as described (e.g. -d 08:00:1B:1A:12:A3)\n");
+				talker_usage(prgname);
+				return -1;
+
+
+		      }
+                      break;
+
+                /* long options */
 		case CMD_LINE_OPT_PORTMAP_NUM:
 			ret = l2fwd_parse_port_pair_config(optarg);
 			if (ret) {
 				fprintf(stderr, "Invalid config\n");
-				l2fwd_usage(prgname);
+				talker_usage(prgname);
 				return -1;
 			}
 			break;
 
 		default:
-			l2fwd_usage(prgname);
+			talker_usage(prgname);
 			return -1;
 		}
 	}
@@ -812,9 +877,9 @@ main(int argc, char **argv)
 	signal(SIGTERM, signal_handler);
 
 	/* parse application arguments (after the EAL ones) */
-	ret = l2fwd_parse_args(argc, argv);
+	ret = talker_parse_args(argc, argv);
 	if (ret < 0)
-		rte_exit(EXIT_FAILURE, "Invalid L2FWD arguments\n");
+		rte_exit(EXIT_FAILURE, "Invalid Talker arguments %d\n",ret);
 
 	printf("MAC updating %s\n", mac_updating ? "enabled" : "disabled");
 
