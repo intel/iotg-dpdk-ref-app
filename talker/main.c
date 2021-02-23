@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause
- * Copyright(c) 2010-2016 Intel Corporation
+ * Copyright(c) 2010-2021 Intel Corporation
  */
 
 #include <stdio.h>
@@ -39,6 +39,8 @@
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
 #include <rte_string_fns.h>
+
+#include <sys/time.h>
 
 static volatile bool force_quit;
 
@@ -332,6 +334,9 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 static void
 talker_main_loop(void)
 {
+
+#define TIME_STAMP_MSG_SIZE 36  
+
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
 	struct rte_mbuf *m;
 	int sent;
@@ -408,21 +413,40 @@ talker_main_loop(void)
 			prev_tsc = cur_tsc;
 		}
 
-		/*
-		 * Send tiemstamp  packet to TX queues
-		 */
+	/*
+	 * Send tiemstamp  packet to TX queues
+	 */
+
+        //struct timespec t_stamp;
+        //clock_gettime(CLOCK_MONOTONIC_RAW, &t_stamp);
+        //printf ("\ntime:%s",t_stamp);
+
+        struct timeval tv;
+        struct timezone tz;
+        struct tm *t_stamp;
+ 
+
+        gettimeofday(&tv, &tz); 
+        t_stamp=localtime(&tv.tv_sec);
+
+
+        char b_tstamp[TIME_STAMP_MSG_SIZE]; 
+        int i_tmp  = sprintf(b_tstamp,"%d-%d-%d %d:%02d:%02d %ld",1900+t_stamp->tm_year, t_stamp->tm_mon+1,t_stamp->tm_mday,t_stamp->tm_hour, t_stamp->tm_min, t_stamp->tm_sec, tv.tv_usec);
+        
 
         struct Message {
-		char data[11];
+		char data[TIME_STAMP_MSG_SIZE];
 	};
 	struct rte_ether_hdr *eth_hdr;
-	struct Message obj = {{'Y','O','C','K','G','E','N','2','0','2','1'}};
+
+	//struct Message obj = {{'Y','O','C','K','G','E','N','2','0','2','1'}};
+	struct Message obj;
+        memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
+
 	struct Message *msg;
 	struct rte_ether_addr s_addr = {{0x14,0x02,0xEC,0x89,0x8D,0x24}};
 	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
-        //uint8_t dst_mac_addr[6] = {0x00,0x00,0x00,0x00,0x00,0x00};
-
-        
+ 
 	uint16_t ether_type = 0x0800;//0x0a00;
 
         int BURST_SIZE=12;
@@ -444,15 +468,14 @@ talker_main_loop(void)
 
         uint16_t nb_tx = rte_eth_tx_burst(0,0,pkt,BURST_SIZE);
 
-        printf("\nSending Packet To DESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+        printf("\nSending Packet (Timestamp:%s) To DESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                                msg->data, 
                                 eth_hdr->d_addr.addr_bytes[0],
                                 eth_hdr->d_addr.addr_bytes[1],
                                 eth_hdr->d_addr.addr_bytes[2],
                                 eth_hdr->d_addr.addr_bytes[3],
                                 eth_hdr->d_addr.addr_bytes[4],
                                 eth_hdr->d_addr.addr_bytes[5]);
-        //printf("\nSending Packet...%d\n", nb_tx);
-
         for(i=0;i<BURST_SIZE;i++)
 		rte_pktmbuf_free(pkt[i]);
 
@@ -463,7 +486,7 @@ talker_main_loop(void)
 
 
 static int
-l2fwd_launch_one_lcore(__rte_unused void *dummy)
+talker_launch_one_lcore(__rte_unused void *dummy)
 {
 	talker_main_loop();
 	return 0;
@@ -488,7 +511,7 @@ talker_usage(const char *prgname)
 }
 
 static int
-l2fwd_parse_portmask(const char *portmask)
+talker_parse_portmask(const char *portmask)
 {
 	char *end = NULL;
 	unsigned long pm;
@@ -502,7 +525,7 @@ l2fwd_parse_portmask(const char *portmask)
 }
 
 static int
-l2fwd_parse_port_pair_config(const char *q_arg)
+talker_parse_port_pair_config(const char *q_arg)
 {
 	enum fieldnames {
 		FLD_PORT1 = 0,
@@ -557,7 +580,7 @@ l2fwd_parse_port_pair_config(const char *q_arg)
 }
 
 static unsigned int
-l2fwd_parse_nqueue(const char *q_arg)
+talker_parse_nqueue(const char *q_arg)
 {
 	char *end = NULL;
 	unsigned long n;
@@ -575,7 +598,7 @@ l2fwd_parse_nqueue(const char *q_arg)
 }
 
 static int
-l2fwd_parse_timer_period(const char *q_arg)
+talker_parse_timer_period(const char *q_arg)
 {
 	char *end = NULL;
 	int n;
@@ -590,7 +613,8 @@ l2fwd_parse_timer_period(const char *q_arg)
 	return n;
 }
 
-static int talker_parse_dst_mac(const char *q_arg)
+static int 
+talker_parse_dst_mac(const char *q_arg)
 {
 
   int n = -5;
@@ -671,7 +695,7 @@ talker_parse_args(int argc, char **argv)
 		switch (opt) {
 		/* portmask */
 		case 'p':
-			l2fwd_enabled_port_mask = l2fwd_parse_portmask(optarg);
+			l2fwd_enabled_port_mask = talker_parse_portmask(optarg);
 			if (l2fwd_enabled_port_mask == 0) {
 				printf("invalid portmask\n");
 				talker_usage(prgname);
@@ -681,7 +705,7 @@ talker_parse_args(int argc, char **argv)
 
 		/* nqueue */
 		case 'q':
-			l2fwd_rx_queue_per_lcore = l2fwd_parse_nqueue(optarg);
+			l2fwd_rx_queue_per_lcore = talker_parse_nqueue(optarg);
 			if (l2fwd_rx_queue_per_lcore == 0) {
 				printf("invalid queue number\n");
 				talker_usage(prgname);
@@ -691,7 +715,7 @@ talker_parse_args(int argc, char **argv)
 
 		/* timer period */
 		case 'T':
-			timer_secs = l2fwd_parse_timer_period(optarg);
+			timer_secs = talker_parse_timer_period(optarg);
 			if (timer_secs < 0) {
 				printf("invalid timer period\n");
 				talker_usage(prgname);
@@ -714,7 +738,7 @@ talker_parse_args(int argc, char **argv)
 
                 /* long options */
 		case CMD_LINE_OPT_PORTMAP_NUM:
-			ret = l2fwd_parse_port_pair_config(optarg);
+			ret = talker_parse_port_pair_config(optarg);
 			if (ret) {
 				fprintf(stderr, "Invalid config\n");
 				talker_usage(prgname);
@@ -1107,7 +1131,7 @@ main(int argc, char **argv)
 
 	ret = 0;
 	/* launch per-lcore init on every lcore */
-	rte_eal_mp_remote_launch(l2fwd_launch_one_lcore, NULL, CALL_MAIN);
+	rte_eal_mp_remote_launch(talker_launch_one_lcore, NULL, CALL_MAIN);
 	RTE_LCORE_FOREACH_WORKER(lcore_id) {
 		if (rte_eal_wait_lcore(lcore_id) < 0) {
 			ret = -1;
