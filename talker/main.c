@@ -370,8 +370,8 @@ talker_main_loop(void)
 	}
 
 	while (!force_quit) {
-
-		cur_tsc = rte_rdtsc();
+                force_quit = true;           
+                cur_tsc = rte_rdtsc();
 
 		/*
 		 * TX burst queue drain
@@ -387,7 +387,6 @@ talker_main_loop(void)
 				sent = rte_eth_tx_buffer_flush(portid, 0, buffer);
 				if (sent)
 					port_statistics[portid].tx += sent;
-
 			}
 
 			/* if timer is enabled */
@@ -449,7 +448,7 @@ talker_main_loop(void)
  
 	uint16_t ether_type = 0x0800;//0x0a00;
 
-        int BURST_SIZE=12;
+        int BURST_SIZE=1;
         struct rte_mbuf * pkt[BURST_SIZE];
         struct rte_mbuf *m;
 	int i;
