@@ -130,25 +130,42 @@ static void debug0(const char* format,...){
 static void
 extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
 {
-       return;   
-       if (rx_batch_ttl <=10) return;
+
+#define TALKER_PACKET_ETH_TYPE 2048
+       
+       
 
        struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
+       char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
+       int datalen = rte_pktmbuf_pkt_len(m);  
+       struct rte_ether_addr src01 =  eth_hdr->s_addr;
+       struct rte_ether_addr dst01 =  eth_hdr->d_addr;
 
-        //if (eth_hdr->ether_type == 8) return;
+       
+       if (eth_hdr->ether_type != TALKER_PACKET_ETH_TYPE) { 
+            return; 
+       }
 
-        //yockgen: extracting packet content    
+       if (l2fwd_ports_eth_addr[0].addr_bytes[0] != dst01.addr_bytes[0] ||
+           l2fwd_ports_eth_addr[0].addr_bytes[1] != dst01.addr_bytes[1] ||
+           l2fwd_ports_eth_addr[0].addr_bytes[2] != dst01.addr_bytes[2] ||
+           l2fwd_ports_eth_addr[0].addr_bytes[3] != dst01.addr_bytes[3] ||
+           l2fwd_ports_eth_addr[0].addr_bytes[4] != dst01.addr_bytes[4] ||
+           l2fwd_ports_eth_addr[0].addr_bytes[5] != dst01.addr_bytes[5] 
+          ){
+             return;
+       }
+
+         
         printf ("\n------------------------------------------");
         printf ("\nbatch: %d of %d",rx_batch_idx,rx_batch_ttl);
         printf("\nExtacting Packet:\n");
-      
-        printf ("\nEthernet type=%d",eth_hdr->ether_type);
-       
 
-        int datalen = rte_pktmbuf_pkt_len(m);  
+        printf ("\nEthernet type=%d",eth_hdr->ether_type);
+
+
         printf ("\nPayload Data Size=%d",datalen);
 
-        struct rte_ether_addr src01 =  eth_hdr->s_addr;
         printf("\nSOURCE MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
                                 src01.addr_bytes[0],
                                 src01.addr_bytes[1],
@@ -157,7 +174,6 @@ extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
                                 src01.addr_bytes[4],
                                 src01.addr_bytes[5]);
 
-        struct rte_ether_addr dst01 =  eth_hdr->d_addr;
         printf("\nDESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
                                 dst01.addr_bytes[0],
                                 dst01.addr_bytes[1],
@@ -167,7 +183,6 @@ extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
                                 dst01.addr_bytes[5]);
 
 
-         
 
         if (RTE_ETH_IS_IPV4_HDR(m->packet_type)) {
 
@@ -185,6 +200,18 @@ extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
                               printf("\nNot IPV4 Packet");
         }
 
+        //print payload  
+       printf("\nPacket Payload: "); 
+       int j;
+	for(j=0;j<26;j++)
+	   printf("%c",msg[j]);
+        printf("\n");
+
+       /*if (eth_hdr->ether_type == TALKER_PACKET_ETH_TYPE) { 
+            exit(-1);
+       }*/
+
+        
 
 
 
@@ -272,6 +299,7 @@ print_stats_02(void)
 static void
 print_stats(void)
 {
+        return; 
         struct rte_eth_stats eth_stats;
         unsigned int i;
         uint64_t  total_packets_sent=0, total_packets_received=0, total_packets_sent_bytes=0,total_packets_received_bytes=0;
@@ -346,7 +374,7 @@ print_stats(void)
 	printf("\n====================================================\n");
 
 
-        print_stats_02();
+        //print_stats_02();
 
 
 }
@@ -485,25 +513,21 @@ l2fwd_main_loop(void)
 
  
                         int datalen = 0;
-                        const int mx_tmp = 200; //important: filter only big packet for easy tracking, feel free to change
+                        //const int mx_tmp = 200; //important: filter only big packet for easy tracking, feel free to change
 			for (j = 0; j < nb_rx; j++) {
 				m = pkts_burst[j];
 				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
                                 datalen = rte_pktmbuf_pkt_len(m);
- 
-                                if (datalen>mx_tmp)  { 
-                                    extract_l2packet(m,j+1,nb_rx);
-                                }
-                               //printf("\nl2fwd_simple_foward called!");
-                               l2fwd_simple_forward(m, portid);
+
+                                extract_l2packet(m,j+1,nb_rx); 
+                                l2fwd_simple_forward(m, portid);
 
 
 			}
 
                         clock_gettime(CLOCK_MONOTONIC, &end);
-                        long timeElapsed = diff_us(end, start);
-                        if (nb_rx>0 && datalen>mx_tmp)
-                            printf("\nlcore id=%d portid=%d packet#=%d elapsed=%ld(micro seconds)\n",lcore_id,portid,nb_rx,timeElapsed); 
+                        long timeElapsed = diff_us(end, start); 
+                        //printf("\nlcore id=%d portid=%d packet#=%d elapsed=%ld(micro seconds)\n",lcore_id,portid,nb_rx,timeElapsed); 
 
 
 		}
