@@ -121,22 +121,11 @@ static uint64_t timer_period = 10; /* default period is 10 seconds */
 static uint8_t dst_mac_addr[6] = {0x00,0x00,0x00,0x00,0x00,0x00};
 
 
-static void debug0(const char* format,...){
-  return;
-  char buffer[1000];
-  va_list args;
-  va_start (args, format);
-  vsnprintf (buffer, 999, format, args);
-  printf ("%s",buffer); 
-  va_end(args);
-  
-}
-
 static void
 extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
 {
-       //return;   
-       //if (rx_batch_ttl <=10) return;
+
+ 
 
        struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
        char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
@@ -145,9 +134,8 @@ extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
         printf ("\n------------------------------------------");
         printf ("\nbatch: %d of %d",rx_batch_idx,rx_batch_ttl);
         printf("\nExtacting Packet:\n");
-      
         printf ("\nEthernet type=%d",eth_hdr->ether_type);
-       
+
 
         int datalen = rte_pktmbuf_pkt_len(m);  
         printf ("\nPayload Data Size=%d",datalen);
@@ -169,9 +157,6 @@ extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
                                 dst01.addr_bytes[3],
                                 dst01.addr_bytes[4],
                                 dst01.addr_bytes[5]);
-
-
-         
 
         if (RTE_ETH_IS_IPV4_HDR(m->packet_type)) {
 
@@ -330,6 +315,73 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 		port_statistics[dst_port].tx += sent;
 }
 
+static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
+{
+#define TIME_STAMP_MSG_SIZE 36  
+
+
+        struct timeval tv;
+        struct timezone tz;
+        struct tm *t_stamp;
+
+
+        gettimeofday(&tv, &tz); 
+        t_stamp=localtime(&tv.tv_sec);
+
+
+        char b_tstamp[TIME_STAMP_MSG_SIZE]; 
+        int i_tmp  = sprintf(b_tstamp,"%d-%d-%d %d:%02d:%02d %ld",1900+t_stamp->tm_year, t_stamp->tm_mon+1,t_stamp->tm_mday,t_stamp->tm_hour, t_stamp->tm_min, t_stamp->tm_sec, tv.tv_usec);
+ 
+
+        struct Message {
+		char data[TIME_STAMP_MSG_SIZE];
+	};
+	struct rte_ether_hdr *eth_hdr;
+
+	//struct Message obj = {{'Y','O','C','K','G','E','N','2','0','2','1'}};
+	struct Message obj;
+        memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
+
+	struct Message *msg;
+	struct rte_ether_addr s_addr = {{0x14,0x02,0xEC,0x89,0x8D,0x24}};
+	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
+ 
+	uint16_t ether_type = 0x0800;//0x0a00;
+
+        int BURST_SIZE = pkt_size;
+
+        //struct rte_mbuf * pkt[BURST_SIZE];
+
+        struct rte_mbuf *m;
+	int i;
+	for(i=0;i<BURST_SIZE;i++) {
+		pkt[i] = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
+		eth_hdr = rte_pktmbuf_mtod(pkt[i],struct rte_ether_hdr*);
+		eth_hdr->d_addr = d_addr;
+		eth_hdr->s_addr = s_addr;
+		eth_hdr->ether_type = ether_type;
+		msg = (struct Message*) (rte_pktmbuf_mtod(pkt[i],char*) + sizeof(struct rte_ether_hdr));
+		*msg = obj;
+		int pkt_size = sizeof(struct Message) + sizeof(struct rte_ether_hdr);
+		pkt[i]->data_len = pkt_size;
+		pkt[i]->pkt_len = pkt_size;
+	}
+
+       printf("\nSending Packet (Timestamp:%s) To DESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                                msg->data, 
+                                eth_hdr->d_addr.addr_bytes[0],
+                                eth_hdr->d_addr.addr_bytes[1],
+                                eth_hdr->d_addr.addr_bytes[2],
+                                eth_hdr->d_addr.addr_bytes[3],
+                                eth_hdr->d_addr.addr_bytes[4],
+                                eth_hdr->d_addr.addr_bytes[5]);
+
+
+        return 0;
+
+}
+
+
 /* main processing loop */
 static void
 talker_main_loop(void)
@@ -370,7 +422,7 @@ talker_main_loop(void)
 	}
 
 	while (!force_quit) {
-                force_quit = true;           
+                //force_quit = true;//for debug purpose cause only one packet send
                 cur_tsc = rte_rdtsc();
 
 		/*
@@ -415,12 +467,12 @@ talker_main_loop(void)
 	/*
 	 * Send tiemstamp  packet to TX queues
 	 */
-
         //struct timespec t_stamp;
         //clock_gettime(CLOCK_MONOTONIC_RAW, &t_stamp);
         //printf ("\ntime:%s",t_stamp);
 
-        struct timeval tv;
+        int BURST_SIZE = 1;
+/*        struct timeval tv;
         struct timezone tz;
         struct tm *t_stamp;
  
@@ -431,7 +483,6 @@ talker_main_loop(void)
 
         char b_tstamp[TIME_STAMP_MSG_SIZE]; 
         int i_tmp  = sprintf(b_tstamp,"%d-%d-%d %d:%02d:%02d %ld",1900+t_stamp->tm_year, t_stamp->tm_mon+1,t_stamp->tm_mday,t_stamp->tm_hour, t_stamp->tm_min, t_stamp->tm_sec, tv.tv_usec);
-        
 
         struct Message {
 		char data[TIME_STAMP_MSG_SIZE];
@@ -445,10 +496,10 @@ talker_main_loop(void)
 	struct Message *msg;
 	struct rte_ether_addr s_addr = {{0x14,0x02,0xEC,0x89,0x8D,0x24}};
 	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
- 
+
 	uint16_t ether_type = 0x0800;//0x0a00;
 
-        int BURST_SIZE=1;
+        
         struct rte_mbuf * pkt[BURST_SIZE];
         struct rte_mbuf *m;
 	int i;
@@ -464,10 +515,14 @@ talker_main_loop(void)
 		pkt[i]->data_len = pkt_size;
 		pkt[i]->pkt_len = pkt_size;
 	}
-
+*/
+  
+        struct rte_mbuf *pkt[BURST_SIZE];
+        int ret01 = construct_packet(pkt, BURST_SIZE);
         uint16_t nb_tx = rte_eth_tx_burst(0,0,pkt,BURST_SIZE);
 
-        printf("\nSending Packet (Timestamp:%s) To DESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+
+/*        printf("\nSending Packet (Timestamp:%s) To DESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
                                 msg->data, 
                                 eth_hdr->d_addr.addr_bytes[0],
                                 eth_hdr->d_addr.addr_bytes[1],
@@ -475,6 +530,8 @@ talker_main_loop(void)
                                 eth_hdr->d_addr.addr_bytes[3],
                                 eth_hdr->d_addr.addr_bytes[4],
                                 eth_hdr->d_addr.addr_bytes[5]);
+
+*/
         for(i=0;i<BURST_SIZE;i++)
 		rte_pktmbuf_free(pkt[i]);
 
