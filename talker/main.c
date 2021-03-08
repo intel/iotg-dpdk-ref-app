@@ -315,22 +315,28 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 		port_statistics[dst_port].tx += sent;
 }
 
+static uint64_t get_time_nanosec(clockid_t clkid)
+{
+#define NSEC_PER_SEC 1000000000L
+	struct timespec now;
+	clock_gettime(clkid, &now);
+	return now.tv_sec * NSEC_PER_SEC + now.tv_nsec;
+}
+
 static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 {
 #define TIME_STAMP_MSG_SIZE 36  
 
+           
+        //struct timeval tv;
+        //struct timezone tz;
+        //struct tm *t_stamp;
 
-        struct timeval tv;
-        struct timezone tz;
-        struct tm *t_stamp;
+        //gettimeofday(&tv, &tz); 
+        //t_stamp=localtime(&tv.tv_sec);
 
-
-        gettimeofday(&tv, &tz); 
-        t_stamp=localtime(&tv.tv_sec);
-
-
-        char b_tstamp[TIME_STAMP_MSG_SIZE]; 
-        int i_tmp  = sprintf(b_tstamp,"%d-%d-%d %d:%02d:%02d %ld",1900+t_stamp->tm_year, t_stamp->tm_mon+1,t_stamp->tm_mday,t_stamp->tm_hour, t_stamp->tm_min, t_stamp->tm_sec, tv.tv_usec);
+        //char b_tstamp[TIME_STAMP_MSG_SIZE]; 
+        //int i_tmp  = sprintf(b_tstamp,"%d-%d-%d %d:%02d:%02d %ld",1900+t_stamp->tm_year, t_stamp->tm_mon+1,t_stamp->tm_mday,t_stamp->tm_hour, t_stamp->tm_min, t_stamp->tm_sec, tv.tv_usec);
  
 
         struct Message {
@@ -339,6 +345,20 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 	struct rte_ether_hdr *eth_hdr;
 
 	//struct Message obj = {{'Y','O','C','K','G','E','N','2','0','2','1'}};
+        //dpdk way
+        //uint64_t nowrdt = rte_rdtsc();
+        //printf ("\nrte_rdtsc %"PRIu64,nowrdt);
+
+        
+
+        uint64_t tx_tsp  = get_time_nanosec(CLOCK_REALTIME); 
+        printf("\nclock_gettime %"PRIu64, tx_tsp);
+        char b_tstamp[TIME_STAMP_MSG_SIZE]; 
+        int i_tmp  = sprintf(b_tstamp,"%"PRIu64,tx_tsp);
+
+
+
+        //original code 
 	struct Message obj;
         memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
 
@@ -350,8 +370,7 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 
         int BURST_SIZE = pkt_size;
 
-        //struct rte_mbuf * pkt[BURST_SIZE];
-
+ 
         struct rte_mbuf *m;
 	int i;
 	for(i=0;i<BURST_SIZE;i++) {
@@ -367,7 +386,7 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 		pkt[i]->pkt_len = pkt_size;
 	}
 
-       printf("\nSending Packet (Timestamp:%s) To DESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+       printf("\nTest: Sending Packet (Timestamp:%s) To DESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
                                 msg->data, 
                                 eth_hdr->d_addr.addr_bytes[0],
                                 eth_hdr->d_addr.addr_bytes[1],
@@ -421,9 +440,14 @@ talker_main_loop(void)
 
 	}
 
+        int icounter = 0;
 	while (!force_quit) {
                 //force_quit = true;//for debug purpose cause only one packet send
                 cur_tsc = rte_rdtsc();
+                if (icounter > 100){
+                    force_quit = true;  
+                }  
+                icounter++;  
 
 		/*
 		 * TX burst queue drain
@@ -472,50 +496,6 @@ talker_main_loop(void)
         //printf ("\ntime:%s",t_stamp);
 
         int BURST_SIZE = 1;
-/*        struct timeval tv;
-        struct timezone tz;
-        struct tm *t_stamp;
- 
-
-        gettimeofday(&tv, &tz); 
-        t_stamp=localtime(&tv.tv_sec);
-
-
-        char b_tstamp[TIME_STAMP_MSG_SIZE]; 
-        int i_tmp  = sprintf(b_tstamp,"%d-%d-%d %d:%02d:%02d %ld",1900+t_stamp->tm_year, t_stamp->tm_mon+1,t_stamp->tm_mday,t_stamp->tm_hour, t_stamp->tm_min, t_stamp->tm_sec, tv.tv_usec);
-
-        struct Message {
-		char data[TIME_STAMP_MSG_SIZE];
-	};
-	struct rte_ether_hdr *eth_hdr;
-
-	//struct Message obj = {{'Y','O','C','K','G','E','N','2','0','2','1'}};
-	struct Message obj;
-        memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
-
-	struct Message *msg;
-	struct rte_ether_addr s_addr = {{0x14,0x02,0xEC,0x89,0x8D,0x24}};
-	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
-
-	uint16_t ether_type = 0x0800;//0x0a00;
-
-        
-        struct rte_mbuf * pkt[BURST_SIZE];
-        struct rte_mbuf *m;
-	int i;
-	for(i=0;i<BURST_SIZE;i++) {
-		pkt[i] = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
-		eth_hdr = rte_pktmbuf_mtod(pkt[i],struct rte_ether_hdr*);
-		eth_hdr->d_addr = d_addr;
-		eth_hdr->s_addr = s_addr;
-		eth_hdr->ether_type = ether_type;
-		msg = (struct Message*) (rte_pktmbuf_mtod(pkt[i],char*) + sizeof(struct rte_ether_hdr));
-		*msg = obj;
-		int pkt_size = sizeof(struct Message) + sizeof(struct rte_ether_hdr);
-		pkt[i]->data_len = pkt_size;
-		pkt[i]->pkt_len = pkt_size;
-	}
-*/
   
         struct rte_mbuf *pkt[BURST_SIZE];
         int ret01 = construct_packet(pkt, BURST_SIZE);
@@ -1171,6 +1151,14 @@ main(int argc, char **argv)
 				l2fwd_ports_eth_addr[portid].addr_bytes[3],
 				l2fwd_ports_eth_addr[portid].addr_bytes[4],
 				l2fwd_ports_eth_addr[portid].addr_bytes[5]);
+
+                /*yockgen: check hardware timestamping*/
+                /*if (!(dev_info.rx_offload_capa & DEV_RX_OFFLOAD_TIMESTAMP)) {
+				rte_exit(EXIT_FAILURE,
+					"ERROR: Port %u does not support hardware time stamping %"PRIu64
+                                        "\n",
+					portid,dev_info.rx_offload_capa) ;
+		}*/
 
 		/* initialize port stats */
 		memset(&port_statistics, 0, sizeof(port_statistics));
