@@ -127,6 +127,14 @@ static void debug0(const char* format,...){
   
 }
 
+uint64_t get_time_nanosec(clockid_t clkid)
+{
+#define NSEC_PER_SEC 1000000000L
+	struct timespec now;
+	clock_gettime(clkid, &now);
+	return now.tv_sec * NSEC_PER_SEC + now.tv_nsec;
+}
+
 static void
 extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
 {
@@ -154,6 +162,7 @@ extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
            l2fwd_ports_eth_addr[0].addr_bytes[5] != dst01.addr_bytes[5] 
           ){
              return;
+ 
        }
 
          
@@ -196,22 +205,35 @@ extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
                                  bytes[2] = (ipTmp >> 16) & 0xFF;
                                  bytes[3] = (ipTmp >> 24) & 0xFF;
                                  printf("\nIP:%d.%d.%d.%d", bytes[3], bytes[2], bytes[1], bytes[0]);
-        }else {
-                              printf("\nNot IPV4 Packet");
         }
 
-        //print payload  
-       printf("\nPacket Payload: "); 
-       int j;
-	for(j=0;j<26;j++)
+       //print payload  
+        printf("\nPacket Payload: "); 
+
+        char b_tx_tsp[20]; 
+        int j;
+        for(j=0;j<20;j++){
+           b_tx_tsp[j] = msg[j]; 
 	   printf("%c",msg[j]);
+        }
         printf("\n");
 
-       /*if (eth_hdr->ether_type == TALKER_PACKET_ETH_TYPE) { 
+
+        //printf("rx_tsp:%s\n",b_tx_tsp);
+	uint64_t now_tsp  = get_time_nanosec(CLOCK_REALTIME);
+        uint64_t tx_tsp;
+        sscanf(b_tx_tsp, "%"PRIu64, &tx_tsp);
+        uint64_t delta_val = now_tsp - tx_tsp;
+
+        printf("rx_tsp:%"PRIu64,tx_tsp);
+        printf("\nnow_tsp:%"PRIu64,now_tsp);
+        printf("\ndelta:%"PRIu64,delta_val);        
+
+       /*if (eth_hdr->ether_type == TALKER_PACKET_ETH_TYPE) {
             exit(-1);
        }*/
 
-        
+
 
 
 
