@@ -135,8 +135,9 @@ uint64_t get_time_nanosec(clockid_t clkid)
 	return now.tv_sec * NSEC_PER_SEC + now.tv_nsec;
 }
 
-static void
-extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
+
+static int iCnt = 0; 
+static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
 {
 
 #define TALKER_PACKET_ETH_TYPE 2048
@@ -214,10 +215,16 @@ extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
         int j;
         for(j=0;j<20;j++){
            b_tx_tsp[j] = msg[j]; 
+	  //printf("%c",msg[j]);
+        }
+        //printf("\n");
+
+        printf("\nidx:");
+        for (j=20;j<25;j++){
 	   printf("%c",msg[j]);
         }
         printf("\n");
-
+        iCnt++;  
 
         //printf("rx_tsp:%s\n",b_tx_tsp);
 	uint64_t now_tsp  = get_time_nanosec(CLOCK_REALTIME);
@@ -225,9 +232,9 @@ extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl)
         sscanf(b_tx_tsp, "%"PRIu64, &tx_tsp);
         uint64_t delta_val = now_tsp - tx_tsp;
 
-        printf("rx_tsp:%"PRIu64,tx_tsp);
-        printf("\nnow_tsp:%"PRIu64,now_tsp);
-        printf("\ndelta:%"PRIu64,delta_val);        
+        printf("tx_tsp:%"PRIu64,tx_tsp);
+        //printf("\nnow_tsp:%"PRIu64,now_tsp);
+        //printf("\ndelta:%"PRIu64,delta_val);        
 
        /*if (eth_hdr->ether_type == TALKER_PACKET_ETH_TYPE) {
             exit(-1);
@@ -522,34 +529,59 @@ l2fwd_main_loop(void)
 		 */
 		for (i = 0; i < qconf->n_rx_port; i++) {
 
-                        struct timespec start, end;
-                        clock_gettime(CLOCK_MONOTONIC, &start);
 
- 
 			portid = qconf->rx_port_list[i];
 			nb_rx = rte_eth_rx_burst(portid, 0,
 						 pkts_burst, MAX_PKT_BURST);
 
 			port_statistics[portid].rx += nb_rx;
 			port_statistics[portid].yockgen = nb_rx;
-
  
-                        int datalen = 0;
-                        //const int mx_tmp = 200; //important: filter only big packet for easy tracking, feel free to change
+                        int datalen = 0; 
 			for (j = 0; j < nb_rx; j++) {
-				m = pkts_burst[j];
+
+				m = pkts_burst[j]; //change back to variable!!!!!!
+				//rte_prefetch0(rte_pktmbuf_mtod(m, void *));
+                                datalen = rte_pktmbuf_pkt_len(m);
+                                extract_l2packet(m,j+1,nb_rx); 
+
+//yockgen: troubleshooting
+//printf("\nj=pkts_burst[%d] nb_rx=%d\n",j,nb_rx);
+/*struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
+       char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
+       int datalen = rte_pktmbuf_pkt_len(m);  
+       struct rte_ether_addr src01 =  eth_hdr->s_addr;
+       struct rte_ether_addr dst01 =  eth_hdr->d_addr;
+
+ char b_tx_tsp[20]; 
+        int j;
+        for(j=0;j<20;j++){
+           b_tx_tsp[j] = msg[j]; 
+	   printf("%c",msg[j]);
+        }
+        printf("\n");*/
+//end troubleshooting
+
+
+				/*m = pkts_burst[1]; //change back to variable!!!!!!
 				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
                                 datalen = rte_pktmbuf_pkt_len(m);
-
                                 extract_l2packet(m,j+1,nb_rx); 
-                                l2fwd_simple_forward(m, portid);
+
+
+				m = pkts_burst[2]; //change back to variable!!!!!!
+				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
+                                datalen = rte_pktmbuf_pkt_len(m);
+                                extract_l2packet(m,j+1,nb_rx); */
+
+
+
+                                //l2fwd_simple_forward(m, portid);
 
 
 			}
 
-                        clock_gettime(CLOCK_MONOTONIC, &end);
-                        long timeElapsed = diff_us(end, start); 
-                        //printf("\nlcore id=%d portid=%d packet#=%d elapsed=%ld(micro seconds)\n",lcore_id,portid,nb_rx,timeElapsed); 
+                        
 
 
 		}
@@ -1175,6 +1207,8 @@ main(int argc, char **argv)
 		printf(" Done\n");
 	}
 	printf("Bye...\n");
+
+        printf("\nttl pkt rtx = %d\n",iCnt);
 
 	return ret;
 }
