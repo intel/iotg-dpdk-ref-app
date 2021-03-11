@@ -323,11 +323,12 @@ static uint64_t get_time_nanosec(clockid_t clkid)
 	return now.tv_sec * NSEC_PER_SEC + now.tv_nsec;
 }
 
+static int idx = 0;
 static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 {
 #define TIME_STAMP_MSG_SIZE 36  
 
-           
+
         //struct timeval tv;
         //struct timezone tz;
         //struct tm *t_stamp;
@@ -341,6 +342,7 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 
         struct Message {
 		char data[TIME_STAMP_MSG_SIZE];
+                
 	};
 	struct rte_ether_hdr *eth_hdr;
 
@@ -352,15 +354,22 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
         
 
         uint64_t tx_tsp  = get_time_nanosec(CLOCK_REALTIME); 
-        printf("\nclock_gettime %"PRIu64, tx_tsp);
-        char b_tstamp[TIME_STAMP_MSG_SIZE]; 
-        int i_tmp  = sprintf(b_tstamp,"%"PRIu64,tx_tsp);
+        printf("\nclock_gettime %"PRIu64
+               ",idx %d", tx_tsp,++idx);
 
+        char b_tstamp[TIME_STAMP_MSG_SIZE]; 
+
+        char b_idx[7];
+        int i_tmp = sprintf(b_idx,"%d",idx);
+        i_tmp  = sprintf(b_tstamp,"%"PRIu64
+                                      ",%d",tx_tsp,idx);
 
 
         //original code 
 	struct Message obj;
         memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
+        
+
 
 	struct Message *msg;
 	struct rte_ether_addr s_addr = {{0x14,0x02,0xEC,0x89,0x8D,0x24}};
@@ -444,18 +453,42 @@ talker_main_loop(void)
 	while (!force_quit) {
                 //force_quit = true;//for debug purpose cause only one packet send
                 cur_tsc = rte_rdtsc();
-                if (icounter > 100){
+                if (icounter++ >= 10){
                     force_quit = true;  
                 }  
-                icounter++;  
 
-		/*
-		 * TX burst queue drain
-		 */
-		diff_tsc = cur_tsc - prev_tsc;
-		if (unlikely(diff_tsc > drain_tsc)) {
+         /* Send tiemstamp  packet to TX queues
+	 */
+        //struct timespec t_stamp;
+        //clock_gettime(CLOCK_MONOTONIC_RAW, &t_stamp);
+        //printf ("\ntime:%s",t_stamp);
 
-			for (i = 0; i < qconf->n_rx_port; i++) {
+        int BURST_SIZE = 1;
+ 
+        struct rte_mbuf *pkt[BURST_SIZE];
+        int ret01 = construct_packet(pkt, BURST_SIZE);
+        uint16_t nb_tx = rte_eth_tx_burst(0,0,pkt,BURST_SIZE);
+        //int sent  = rte_eth_tx_buffer(0,0,pkt,BURST_SIZE);
+        //l2fwd_simple_forward(*pkt, 0);
+
+
+//troubleshooting
+/*        unsigned dst_port;
+	int sent;
+	struct rte_eth_dev_tx_buffer *buffer;
+	
+	//if (mac_updating)
+	//	l2fwd_mac_updating(m, dst_port);
+
+	buffer = tx_buffer[dst_port];
+	sent = rte_eth_tx_buffer(0, 0, buffer, pkt);
+	if (sent) printf ("\n!!!sent success!!!\n");*/
+		
+
+//end troubleshooting
+
+
+        for (i = 0; i < qconf->n_rx_port; i++) {
 
 				portid = l2fwd_dst_ports[qconf->rx_port_list[i]];
 				buffer = tx_buffer[portid];
@@ -463,43 +496,8 @@ talker_main_loop(void)
 				sent = rte_eth_tx_buffer_flush(portid, 0, buffer);
 				if (sent)
 					port_statistics[portid].tx += sent;
-			}
+	}
 
-			/* if timer is enabled */
-			if (timer_period > 0) {
-
-				/* advance the timer */
-				timer_tsc += diff_tsc;
-
-				/* if timer has reached its timeout */
-				if (unlikely(timer_tsc >= timer_period)) {
-
-					/* do this only on main core */
-					if (lcore_id == rte_get_main_lcore()) {
-
-						//printf ("yockgen listening....\n");
-						print_stats();
-						/* reset the timer */
-						timer_tsc = 0;
-					}
-				}
-			}
-
-			prev_tsc = cur_tsc;
-		}
-
-	/*
-	 * Send tiemstamp  packet to TX queues
-	 */
-        //struct timespec t_stamp;
-        //clock_gettime(CLOCK_MONOTONIC_RAW, &t_stamp);
-        //printf ("\ntime:%s",t_stamp);
-
-        int BURST_SIZE = 1;
-  
-        struct rte_mbuf *pkt[BURST_SIZE];
-        int ret01 = construct_packet(pkt, BURST_SIZE);
-        uint16_t nb_tx = rte_eth_tx_burst(0,0,pkt,BURST_SIZE);
 
 
 /*        printf("\nSending Packet (Timestamp:%s) To DESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
