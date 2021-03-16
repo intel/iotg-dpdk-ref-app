@@ -213,28 +213,30 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 
         char b_tx_tsp[20]; 
         int j;
-        for(j=0;j<20;j++){
+        for(j=0;j<19;j++){
            b_tx_tsp[j] = msg[j]; 
 	  //printf("%c",msg[j]);
         }
         //printf("\n");
 
-        printf("\nidx:");
-        for (j=20;j<25;j++){
-	   printf("%c",msg[j]);
-        }
-        printf("\n");
-        iCnt++;  
-
+      
         //printf("rx_tsp:%s\n",b_tx_tsp);
 	uint64_t now_tsp  = get_time_nanosec(CLOCK_REALTIME);
         uint64_t tx_tsp;
         sscanf(b_tx_tsp, "%"PRIu64, &tx_tsp);
         uint64_t delta_val = now_tsp - tx_tsp;
 
-        printf("tx_tsp:%"PRIu64,tx_tsp);
-        //printf("\nnow_tsp:%"PRIu64,now_tsp);
-        //printf("\ndelta:%"PRIu64,delta_val);        
+        printf("\ntx_tsp:%"PRIu64,tx_tsp);
+        printf("\nnw_tsp:%"PRIu64,now_tsp);
+        printf("\ndt_tsp:%"PRIu64,delta_val);        
+
+        printf("\nidx:");
+        for (j=20;j<25;j++){
+	   printf("%c",msg[j]);
+        }
+        printf("\n");
+        iCnt++;
+
 
        /*if (eth_hdr->ether_type == TALKER_PACKET_ETH_TYPE) {
             exit(-1);
@@ -501,25 +503,26 @@ l2fwd_main_loop(void)
 
 			}
 
-			/* if timer is enabled */
-			if (timer_period > 0) {
 
-				/* advance the timer */
+			/* if timer is enabled */
+			/*
+                        if (timer_period > 0) {
+
+				// advance the timer 
 				timer_tsc += diff_tsc;
 
-				/* if timer has reached its timeout */
+				// if timer has reached its timeout 
 				if (unlikely(timer_tsc >= timer_period)) {
 
-					/* do this only on main core */
+					// do this only on main core 
 					if (lcore_id == rte_get_main_lcore()) {
-
-						//printf ("yockgen listening....\n");
+						;
 						print_stats();
-						/* reset the timer */
+						// reset the timer 
 						timer_tsc = 0;
 					}
 				}
-			}
+			}*/
 
 			prev_tsc = cur_tsc;
 		}
