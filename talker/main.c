@@ -17,6 +17,7 @@
 #include <getopt.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 #include <rte_common.h>
 #include <rte_log.h>
@@ -198,87 +199,6 @@ static long diff_us(struct timespec t1, struct timespec t2)
 }
 
 
-/* Print out statistics on packets dropped */
-
-static void
-print_stats(void)
-{
-        struct rte_eth_stats eth_stats;
-        unsigned int i;
-        uint64_t  total_packets_sent=0, total_packets_received=0, total_packets_sent_bytes=0,total_packets_received_bytes=0;
-        uint64_t  total_packets_sent_dropped=0,total_packets_received_dropped_buffer=0, total_packets_received_dropped_others=0;
-
-        const char clr[] = { 27, '[', '2', 'J', '\0' };
-        const char topLeft[] = { 27, '[', '1', ';', '1', 'H','\0' };
-        printf("%s%s", clr, topLeft);
-        printf("\nPort statistics\n====================================");
-
-        RTE_ETH_FOREACH_DEV(i) {
-
-	        /* skip disabled ports */
-		if ((l2fwd_enabled_port_mask & (1 << i)) == 0)
-			continue;
-
-                rte_eth_stats_get(i, &eth_stats);
-
-                printf("\nPort %u, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-				i,
-				l2fwd_ports_eth_addr[i].addr_bytes[0],
-				l2fwd_ports_eth_addr[i].addr_bytes[1],
-				l2fwd_ports_eth_addr[i].addr_bytes[2],
-				l2fwd_ports_eth_addr[i].addr_bytes[3],
-				l2fwd_ports_eth_addr[i].addr_bytes[4],
-				l2fwd_ports_eth_addr[i].addr_bytes[5]);
-
-                printf("\nStatistics for port %u\n------------------------------"
-			   "\nPackets sent: %"PRIu64
-			   "\nPackets sent (bytes): %"PRIu64
-			   "\nPackets sent dropped: %"PRIu64
-			   "\nPackets received: %"PRIu64
-			   "\nPackets received (bytes): %"PRIu64
-			   "\nPackets received dropped (no RX buffer) : %"PRIu64
-			   "\nPackets received dropped (other errors) : %"PRIu64,
-			   i,
-			   eth_stats.opackets,
-                           eth_stats.obytes,
-                           eth_stats.oerrors,  
-			   eth_stats.ipackets,
-                           eth_stats.ibytes, 
-                           eth_stats.imissed,
-                           eth_stats.ierrors);
-
-                total_packets_sent += eth_stats.opackets;
-		total_packets_received += eth_stats.ipackets;
-                total_packets_sent_bytes += eth_stats.obytes;
-                total_packets_received_bytes += eth_stats.ibytes;
-                total_packets_sent_dropped += eth_stats.oerrors;
-                total_packets_received_dropped_buffer += eth_stats.imissed;
-                total_packets_received_dropped_others += eth_stats.ierrors;
-
-
-        }
-
-        printf("\n\nAggregate statistics (how many port!!)\n==============================="
-		   "\nTotal packets sent: %"PRIu64
-		   "\nTotal packets sent (bytes): %"PRIu64
-		   "\nTotal packets sent dropped: %"PRIu64
-		   "\nTotal packets received: %"PRIu64
-		   "\nTotal packets received (bytes): %"PRIu64
-		   "\nTotal packets received dropped (no RX buffer): %"PRIu64
-		   "\nTotal packets received dropped (other errors): %"PRIu64,
-		   total_packets_sent,
-                   total_packets_sent_bytes,
-                   total_packets_sent_dropped,
-		   total_packets_received,
-		   total_packets_received_bytes,
-                   total_packets_received_dropped_buffer,
-                   total_packets_received_dropped_others);
-
-	printf("\n====================================================\n");
-
-
-}
-
 static void
 l2fwd_mac_updating(struct rte_mbuf *m, unsigned dest_portid)
 {
@@ -368,7 +288,7 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
         //original code 
 	struct Message obj;
         memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
-        
+
 
 
 	struct Message *msg;
@@ -450,10 +370,12 @@ talker_main_loop(void)
 	}
 
         int icounter = 0;
+        sleep(3);
 	while (!force_quit) {
-                //force_quit = true;//for debug purpose cause only one packet send
+//sleep(1); 
+       //force_quit = true;//for debug purpose cause only one packet send
                 cur_tsc = rte_rdtsc();
-                if (icounter++ >= 10){
+                if (icounter++ >= 10000){
                     force_quit = true;  
                 }  
 
@@ -512,6 +434,14 @@ talker_main_loop(void)
 */
         for(i=0;i<BURST_SIZE;i++)
 		rte_pktmbuf_free(pkt[i]);
+
+         struct timespec ts;
+         uint64_t sleep_timestamp;
+         sleep_timestamp = 300000;
+ 	 ts.tv_sec = 1000050000;//sleep_timestamp / NSEC_PER_SEC;
+	 ts.tv_nsec = 0 ;//sleep_timestamp % NSEC_PER_SEC;
+	 //clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts, NULL);
+         sleep(1); 
 
    }
 
@@ -1182,10 +1112,32 @@ main(int argc, char **argv)
 	}
 
 
-
+        struct rte_eth_stats eth_stats;
 	RTE_ETH_FOREACH_DEV(portid) {
 		if ((l2fwd_enabled_port_mask & (1 << portid)) == 0)
 			continue;
+                
+                rte_eth_stats_get(portid, &eth_stats); 
+                printf("\nStatistics for port %u\n------------------------------"
+			   "\nPackets sent: %"PRIu64
+			   "\nPackets sent (bytes): %"PRIu64
+			   "\nPackets sent dropped: %"PRIu64
+			   "\nPackets received: %"PRIu64
+			   "\nPackets received (bytes): %"PRIu64
+			   "\nPackets received dropped (no RX buffer) : %"PRIu64
+			   "\nPackets received dropped (other errors) : %"PRIu64
+                           "\n",
+			   portid,
+			   eth_stats.opackets,
+                           eth_stats.obytes,
+                           eth_stats.oerrors,  
+			   eth_stats.ipackets,
+                           eth_stats.ibytes, 
+                           eth_stats.imissed,
+                           eth_stats.ierrors);
+
+
+
 		printf("Closing port %d...", portid);
 		ret = rte_eth_dev_stop(portid);
 		if (ret != 0)
@@ -1194,7 +1146,11 @@ main(int argc, char **argv)
 		rte_eth_dev_close(portid);
 		printf(" Done\n");
 	}
-	printf("Bye...\n");
+
+        //printf ("\nPacket Dropped:%"PRIu64,port_statistics[portid].dropped); 
+
+
+	printf("\nBye...\n");
 
 	return ret;
 }
