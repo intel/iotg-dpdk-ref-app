@@ -38,8 +38,8 @@ Bind Down NICs to DPDK compatible driver
 To confirm:
 /home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -s  
 
-SYNC CLOCK IN BOTH TALKER AND LISTENER MACHINES  
-=============================================== 
+PTP CLOCK SYNC IN BOTH TALKER AND LISTENER MACHINES 
+====================================================  
 Run following in TALKER machine and follow by LISTENER machine:  
 sudo /ptp/time_sync.sh i225 
 
@@ -53,6 +53,7 @@ tail /var/log/phc2sys.log
 test: 
 phc2sys => offset value must be below than 100us 
 
+Note: not all NIC with PTP feature, please check your NIC specification, you could ignore this section if not eligible.
 
 RUN LISTENER 
 ==========
@@ -70,7 +71,7 @@ sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af
 
 Route Packet to queue 1 in listener
 ----------------------------------
-If you're using PTP to sync clock between talker and listener, which is usiing RX queue=0 for listner, please route the talker's send packet to queue=1 as below:  
+If you're using PTP to sync clock between talker and listener mentioned in above section, please route the listener packet RX (receiving/ingress) to queue=1 as below:  
 
 ethtool -S enp169s0 | grep rx_ | grep packets 
 ethtool -K enp169s0 ntuple on 
