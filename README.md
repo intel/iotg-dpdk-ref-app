@@ -45,13 +45,13 @@ sudo /ptp/time_sync.sh i225
 
 Validate following in listener machine 
 --------------------------------------- 
-tail /var/log/ptp4l.log
-test:
-ptp4l.log => rms value must below than 100us
+tail /var/log/ptp4l.log 
+test: 
+ptp4l.log => rms value must below than 100us 
 
-tail /var/log/phc2sys.log 
-test:
-phc2sys => offset value must be below than 100us
+tail /var/log/phc2sys.log  
+test: 
+phc2sys => offset value must be below than 100us 
 
 
 RUN LISTENER 
