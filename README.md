@@ -38,6 +38,22 @@ Bind Down NICs to DPDK compatible driver
 To confirm:
 /home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -s  
 
+SYNC CLOCK IN BOTH TALKER AND LISTENER MACHINES  
+=============================================== 
+Run following in TALKER machine and follow by LISTENER machine:  
+sudo /ptp/time_sync.sh i225 
+
+Validate following in listener machine 
+--------------------------------------- 
+tail /var/log/ptp4l.log
+test:
+ptp4l.log => rms value must below than 100us
+
+tail /var/log/phc2sys.log 
+test:
+phc2sys => offset value must be below than 100us
+
+
 RUN LISTENER 
 ==========
 An executable program listen to all L2 (MAC/Ethernet level) broadcasting data frame
