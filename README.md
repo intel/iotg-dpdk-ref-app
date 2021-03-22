@@ -55,6 +55,11 @@ phc2sys => offset value must be below than 100us
 
 Note: not all NIC with PTP feature, please check your NIC specification, you could ignore this section if not eligible.
 
+To verify if the NIC supports PTP feature:
+sudo ethtool -T  enp0s8 
+Check on following: 
+PTP Hardware Clock: 0 
+
 RUN LISTENER 
 ==========
 An executable program listen to all L2 (MAC/Ethernet level) broadcasting data frame
