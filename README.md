@@ -68,8 +68,8 @@ If you want to run using bifurcated level PMD like AF_PACKET, AF_XDP (mean still
 
 sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8  -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1  
 
-Route Packet to queue 1 
------------------------
+Route Packet to queue 1 in listener
+----------------------------------
 If you're using PTP to sync clock between talker and listener, which is usiing RX queue=0 for listner, please route the talker's send packet to queue=1 as below:  
 
 ethtool -S enp169s0 | grep rx_ | grep packets 
@@ -82,6 +82,8 @@ ethtool -N enp169s0 flow-type ether proto 0x88f7 queue 0
 //validate result 
 ethtool --show-ntuple enp169s0  
 
+//running listner on rx queue=1  
+sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8,start_queue=1 -- -p 0x1 -T 1     
 
 RUN Talker 
 ==========
