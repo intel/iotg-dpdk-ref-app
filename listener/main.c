@@ -305,8 +305,8 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
                                 dst01.addr_bytes[4],
                                 dst01.addr_bytes[5]);
 
-         fprintf(fp,"%d,%d,", eth_hdr->ether_type, datalen);
 
+         fprintf(fp,"%d,%d,", eth_hdr->ether_type,datalen);
          fprintf(fp,"%02X:%02X:%02X:%02X:%02X:%02X,",
                                 src01.addr_bytes[0],
                                 src01.addr_bytes[1],
@@ -332,7 +332,7 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
            b_tx_tsp[i] = msg[j];
         }
 
-        fprintf(fp,"%s,", msg);
+        fprintf(fp,"%d,", 0);
 
         /*for(i=0;j<24;i++){
            b_tx_tsp[i] = msg[i];
@@ -349,12 +349,12 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 
         fprintf(stdout,"\ntx_tsp:%"PRIu64,tx_tsp);
         fprintf(stdout,"\nnw_tsp:%"PRIu64,now_tsp);
-        fprintf(stdout,"\nlatency in nanosecond(us):%"PRIu64,delta_val);
+        fprintf(stdout,"\nlatency(us):%"PRIu64,delta_val);
         fprintf(stdout,"\nidx:");
 
-        fprintf(fp,"\n%"PRIu64,delta_val); 
-        fprintf(fp,",%d \n", pCnt);
+        fprintf(fp,"%"PRIu64,delta_val);
         pCnt++;
+        fprintf(fp,",%d\n", pCnt);
 
         //for (j=24; j <34; j++){
         for (j=0; j <100; j++){
