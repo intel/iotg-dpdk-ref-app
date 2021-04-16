@@ -224,6 +224,8 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
  
 	uint16_t ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);//0x0800;//0x0a00;
+        /* workaround to steer the packet to another queue */
+        ether_type = 0xb62c;
 
         int BURST_SIZE = pkt_size;
 
@@ -248,7 +250,7 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 
 		struct rte_vlan_hdr *vh;
 		/* Priority code point 7 (highest), 0 (default) */
-		uint16_t vlan_priority = 7; /* 0xE */
+		uint16_t vlan_priority = 3; /* 0x3 */
 		uint16_t vlan_id = VLAN_ID;
                 uint16_t vlan_tag = (vlan_priority << 13) | vlan_id;
                 uint16_t vlan_tag_be = rte_cpu_to_be_16(vlan_tag);
