@@ -51,6 +51,8 @@ static int iCounter = 0;
 /*Default Listener Output File */
 static char output_file[30] = "default_listenerOPfile.csv";
 
+/*debug flag*/
+static int is_debug = 0;
 
 #define RTE_LOGTYPE_L2FWD RTE_LOGTYPE_USER1
 
@@ -125,7 +127,9 @@ struct rte_flow *flow;
 
 
 static void debug0(const char* format,...){
-  return;
+
+  if (is_debug==0) return;
+
   char buffer[1000];
   va_list args;
   va_start (args, format);
@@ -280,16 +284,13 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
        }
 
 
-        fprintf (stdout,"\n------------------------------------------");
-        fprintf (stdout,"\nbatch: %d of %d",rx_batch_idx,rx_batch_ttl);
-        fprintf (stdout,"\nExtacting Packet:\n");
+        //fprintf (stdout,"\n------------------------------------------");
+        debug0("\n------------------------------------------");
+        debug0("\nbatch: %d of %d",rx_batch_idx,rx_batch_ttl);
+        debug0("\nether_type=%d",eth_hdr->ether_type);
+        debug0("\nPayload Data Size=%d",datalen);
 
-        fprintf (stdout,"\nether_type=%d\n",eth_hdr->ether_type);
-
-
-        fprintf (stdout,"\nPayload Data Size=%d",datalen);
-
-        fprintf(stdout,"\nSOURCE MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
+        debug0("\nSOURCE MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
                                 src01.addr_bytes[0],
                                 src01.addr_bytes[1],
                                 src01.addr_bytes[2],
@@ -297,7 +298,7 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
                                 src01.addr_bytes[4],
                                 src01.addr_bytes[5]);
 
-        fprintf(stdout,"\nDESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
+        debug0("\nDESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
                                 dst01.addr_bytes[0],
                                 dst01.addr_bytes[1],
                                 dst01.addr_bytes[2],
@@ -323,9 +324,6 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
                                 dst01.addr_bytes[5]);
 
 
-
-        fprintf(stdout,"\nPacket Payload: ");
-
         char b_tx_tsp[20];
         int i,j;
         for(j=4,i=0;j<24;j++,i++){
@@ -347,10 +345,10 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
         sscanf(b_tx_tsp, "%"PRIu64, &tx_tsp);
         uint64_t delta_val = now_tsp - tx_tsp;
 
-        fprintf(stdout,"\ntx_tsp:%"PRIu64,tx_tsp);
-        fprintf(stdout,"\nnw_tsp:%"PRIu64,now_tsp);
-        fprintf(stdout,"\nlatency(us):%"PRIu64,delta_val);
-        fprintf(stdout,"\nidx:");
+        debug0("\ntx_tsp:%"PRIu64,tx_tsp);
+        debug0("\nnw_tsp:%"PRIu64,now_tsp);
+        debug0("\nlatency(ns):%"PRIu64,delta_val);
+        debug0("\nidx:");
 
         fprintf(fp,"%"PRIu64,delta_val);
         pCnt++;
@@ -358,21 +356,12 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 
         //for (j=24; j <34; j++){
         for (j=0; j <100; j++){
-           //if (isdigit(msg[j]))
-              fprintf(stdout,"%c",msg[j]);
+           if (isdigit(msg[j]))
+              debug0("%c",msg[j]);
         }
 
-        fprintf(stdout,"\n");
+        debug0("\n");
         iCnt++;
-
-
-       /*if (eth_hdr->ether_type == TALKER_PACKET_ETH_TYPE) {
-            exit(-1);
-       }*/
-
-
-
-
 
 }
 
@@ -703,6 +692,7 @@ static const char short_options[] =
 	"q:"  /* number of queues */
 	"T:"  /* timer period */
         "f:"  /* output file name */
+        "D:"  /*debug mode*/
 	;
 
 #define CMD_LINE_OPT_MAC_UPDATING "mac-updating"
@@ -780,6 +770,11 @@ l2fwd_parse_args(int argc, char **argv)
 				l2fwd_usage(prgname);
 				return -1;
 			}
+			break;
+
+                case 'D':
+                        ret = -3; 
+                        is_debug = 1; 
 			break;
 
 		/* long options */
@@ -1036,7 +1031,7 @@ main(int argc, char **argv)
 		       portid, l2fwd_dst_ports[portid]);
 	}
    
-        //exit(1); 
+         
 	nb_mbufs = RTE_MAX(nb_ports * (nb_rxd + nb_txd + MAX_PKT_BURST +
 		nb_lcores * MEMPOOL_CACHE_SIZE), 8192U);
 
