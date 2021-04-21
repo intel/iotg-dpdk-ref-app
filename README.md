@@ -101,12 +101,3 @@ If you want to run using bifurcated level PMD like AF_PACKET, AF_XDP (mean still
 
 sudo /home/yockgen/dpdk-demo01/l2fwd/build/talker -l 1 -n 1 --vdev=net_af_xdp1,iface=enp0s9 -- -p 0x1 -T 1 -d 08:00:27:cf:69:3e  
 
-
-
-RUN L3FWD  - WIP
-==========================
-working but not clear:  
-/home/yockgen/dpdk/examples/l3fwd/build/l3fwd -l 1 -n 4  --  -p 0x1 --config="(0,0,1)" --parse-ptype  
-source code changed to extract packet info:  
-root@yockgen-VirtualBox:/home/yockgen/dpdk/examples/l3fwd# nano +249 ./l3fwd_lpm.c
-
