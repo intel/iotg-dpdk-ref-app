@@ -708,7 +708,7 @@ static const char short_options[] =
 	"q:"  /* number of queues */
 	"T:"  /* timer period */
         "f:"  /* output file name */
-        "d:"  /*debug mode*/
+        "D:"  /*debug mode*/
 	;
 
 #define CMD_LINE_OPT_MAC_UPDATING "mac-updating"
@@ -788,7 +788,7 @@ l2fwd_parse_args(int argc, char **argv)
 			}
 			break;
 
-                case 'd':
+                case 'D':
                         ret = l2fwd_parse_debug(optarg);
 			break;
 
