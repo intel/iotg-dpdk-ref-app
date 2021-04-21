@@ -74,18 +74,18 @@ If you want to run using bifurcated level PMD like AF_PACKET, AF_XDP (mean still
 
 sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8  -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1  
 
-Route Packet to queue 1 in listener
+Route Packet to queue 3 in listener
 ----------------------------------
 If you're using PTP to sync clock between talker and listener mentioned in above section, please route the listener packet RX (receiving/ingress) to queue=1 as below:  
 
-ethtool -K enp169s0 ntuple on
-ethtool -N enp169s0 flow-type ether vlan 24576 vlan-mask 0x1FFF action 3
+ethtool -K enp169s0 ntuple on 
+ethtool -N enp169s0 flow-type ether vlan 24576 vlan-mask 0x1FFF action 3 
 
-//validate result 
-ethtool --show-ntuple enp169s0  
+//validate result  
+ethtool --show-ntuple enp169s0   
 
-//running listner on rx queue=3   
-sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8,start_queue=3 -- -p 0x1 -T 1 -D 1    
+//running listner on rx queue=3    
+sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8,start_queue=3 -- -p 0x1 -T 1 -D 1     
 
 RUN Talker 
 ==========
