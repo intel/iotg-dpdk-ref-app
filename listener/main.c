@@ -257,9 +257,8 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 {
 
 
-
 #define TALKER_PACKET_ETH_TYPE 2048
- 
+
 
        struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
        char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
@@ -268,7 +267,7 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
        struct rte_ether_addr dst01 =  eth_hdr->d_addr;
 
 
-       if (eth_hdr->ether_type != TALKER_PACKET_ETH_TYPE) { 
+       if (eth_hdr->ether_type != TALKER_PACKET_ETH_TYPE) {
             //return; 
        }
 
@@ -277,7 +276,7 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
            l2fwd_ports_eth_addr[0].addr_bytes[2] != dst01.addr_bytes[2] ||
            l2fwd_ports_eth_addr[0].addr_bytes[3] != dst01.addr_bytes[3] ||
            l2fwd_ports_eth_addr[0].addr_bytes[4] != dst01.addr_bytes[4] ||
-           l2fwd_ports_eth_addr[0].addr_bytes[5] != dst01.addr_bytes[5] 
+           l2fwd_ports_eth_addr[0].addr_bytes[5] != dst01.addr_bytes[5]
           ){
             return;
  
@@ -362,6 +361,11 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 
         debug0("\n");
         iCnt++;
+
+        if (is_debug==0){
+              printf("\r                ");
+              printf("\rPacket received: %d",iCnt);
+        }
 
 }
 
@@ -687,6 +691,18 @@ l2fwd_parse_output_file(const char *q_arg)
 	}
 }
 
+
+static int
+l2fwd_parse_debug(const char *q_arg)
+{
+	if (*q_arg == '1')
+             is_debug = 1;
+	else
+	     is_debug = 0;
+
+        return 1;
+}
+
 static const char short_options[] =
 	"p:"  /* portmask */
 	"q:"  /* number of queues */
@@ -773,8 +789,7 @@ l2fwd_parse_args(int argc, char **argv)
 			break;
 
                 case 'D':
-                        ret = -3; 
-                        is_debug = 1; 
+                        ret = l2fwd_parse_debug(optarg);
 			break;
 
 		/* long options */
