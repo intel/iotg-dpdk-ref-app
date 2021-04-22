@@ -115,8 +115,8 @@ struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
 
 #define MAX_TIMER_PERIOD 86400 /* 1 day max */
 
-/* A tsc-based timer responsible for triggering statistics printout */
-static uint64_t timer_period = 10; /* default period is 10 seconds */
+/* Interval of sending packet  */
+static uint64_t pkt_interval = 20; /* default period is 20 miliseconds */
 
 
 #define NSEC_PER_SEC 1000000000L
@@ -321,7 +321,7 @@ talker_main_loop(void)
 
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
 	struct rte_mbuf *m;
-	int sent;
+	int sent, pkt_interval_ns=0;
 	unsigned lcore_id;
 	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc;
 	unsigned i, j, portid, nb_rx;
@@ -329,6 +329,7 @@ talker_main_loop(void)
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S *
 			BURST_TX_DRAIN_US;
 	struct rte_eth_dev_tx_buffer *buffer;
+        
 
 	prev_tsc = 0;
 	timer_tsc = 0;
@@ -362,25 +363,26 @@ tx_timestamp += 2 * NSEC_PER_SEC;
 
 	while (!force_quit) {
 
+            
 //tx_timestamp += 2000000;//opt->interval_ns;
 //debug
 
-         struct timespec ts;
-         uint64_t sleep_timestamp;
-         sleep_timestamp = tx_timestamp;
- 	 ts.tv_sec = sleep_timestamp / NSEC_PER_SEC;
-	 ts.tv_nsec = sleep_timestamp % NSEC_PER_SEC;
+         //struct timespec ts;
+         //uint64_t sleep_timestamp;
+         //sleep_timestamp = tx_timestamp;
+ 	 //ts.tv_sec = sleep_timestamp / NSEC_PER_SEC;
+	 //ts.tv_nsec = sleep_timestamp % NSEC_PER_SEC;
 	 //clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts, NULL);
          // fprintf(stdout, "\nsleep time:tv_sec=%ld tv_nsec=%ld",ts.tv_sec,ts.tv_nsec);
-         usleep(2000); //2ms
-         //sleep(1);
+         pkt_interval_ns = pkt_interval * 1000;  
+         usleep(pkt_interval_ns); 
+         //cur_tsc = rte_rdtsc();
+ 
 
 //debug
-                cur_tsc = rte_rdtsc();
-                if (icounter++ >= 50000){
-                    force_quit = true;
-                }
-
+        if (icounter++ >= 100000){
+             force_quit = true;
+        }
 
         int BURST_SIZE = 1; 
         struct rte_mbuf *pkt[BURST_SIZE];
@@ -426,7 +428,7 @@ talker_usage(const char *prgname)
 	printf("%s [EAL options] -- -p PORTMASK [-q NQ]\n"
 	       "  -p PORTMASK: hexadecimal bitmask of ports to configure\n"
 	       "  -q NQ: number of queue (=ports) per lcore (default is 1)\n"
-	       "  -T PERIOD: statistics will be refreshed each PERIOD seconds (0 to disable, 10 default, 86400 maximum)\n"
+	       "  -T PERIOD: packet will be transmit each PERIOD miliseconds (must >=2ms, 20ms by default)\n"
                "  -d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e "
                "  -D [1,0] (1 to enable, 0 default disable) "
 	       "  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)\n"
@@ -526,7 +528,7 @@ talker_parse_nqueue(const char *q_arg)
 }
 
 static int
-talker_parse_timer_period(const char *q_arg)
+talker_parse_packet_interval(const char *q_arg)
 {
 	char *end = NULL;
 	int n;
@@ -586,7 +588,7 @@ l2fwd_parse_debug(const char *q_arg)
 static const char short_options[] =
 	"p:"  /* portmask */
 	"q:"  /* number of queues */
-	"T:"  /* timer period */
+	"T:"  /* packet sent interval  */
         "d:"  /* destination mac adddress */ 
         "D:"  /*debug mode*/
 	;
@@ -615,7 +617,7 @@ static const struct option lgopts[] = {
 static int
 talker_parse_args(int argc, char **argv)
 {
-	int opt, ret, timer_secs;
+	int opt, ret, interval_ms;
 	char **argvopt;
 	int option_index;
 	char *prgname = argv[0];
@@ -649,13 +651,13 @@ talker_parse_args(int argc, char **argv)
 
 		/* timer period */
 		case 'T':
-			timer_secs = talker_parse_timer_period(optarg);
-			if (timer_secs < 0) {
-				printf("invalid timer period\n");
+			interval_ms = talker_parse_packet_interval(optarg);
+			if (interval_ms < 2) {
+				printf("invalid packet interval\n");
 				talker_usage(prgname);
 				return -1;
 			}
-			timer_period = timer_secs;
+			pkt_interval = interval_ms;
 			break;
 
                 /* packet destination MAC address  */
@@ -847,8 +849,6 @@ main(int argc, char **argv)
 
 	printf("MAC updating %s\n", mac_updating ? "enabled" : "disabled");
 
-	/* convert to number of cycles */
-	timer_period *= rte_get_timer_hz();
 
 	nb_ports = rte_eth_dev_count_avail();
 	if (nb_ports == 0)
