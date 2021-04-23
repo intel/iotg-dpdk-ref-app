@@ -109,14 +109,6 @@ static struct rte_eth_conf port_conf = {
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
-/* Per-port statistics struct */
-struct l2fwd_port_statistics {
-	uint64_t tx;
-	uint64_t rx;
-	uint64_t dropped;
-        uint64_t yockgen;
-} __rte_cache_aligned;
-struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
 
 #define MAX_TIMER_PERIOD 86400 /* 1 day max */
 
@@ -124,7 +116,6 @@ struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
 static uint64_t timer_period = 10; /* default period is 10 seconds */
 
 struct rte_flow *flow;
-
 
 static void debug0(const char* format,...){
 
@@ -411,14 +402,12 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 
 
 	dst_port = l2fwd_dst_ports[portid];
-        
+ 
 	if (mac_updating)
 		l2fwd_mac_updating(m, dst_port);
 
 	buffer = tx_buffer[dst_port];
 	sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
-	if (sent)
-		port_statistics[dst_port].tx += sent;
 }
 
 /* main processing loop */
@@ -477,13 +466,8 @@ l2fwd_main_loop(void)
 				buffer = tx_buffer[portid];
 
 				sent = rte_eth_tx_buffer_flush(portid, 0, buffer);
-				if (sent)
-					port_statistics[portid].tx += sent;
-
 			}
-
-
-		       prev_tsc = cur_tsc;
+		        prev_tsc = cur_tsc;
 		}
 
 		/*
@@ -496,45 +480,12 @@ l2fwd_main_loop(void)
 			nb_rx = rte_eth_rx_burst(portid, 0,
 						 pkts_burst, MAX_PKT_BURST);
 
-			port_statistics[portid].rx += nb_rx;
- 
                         int datalen = 0; 
 			for (j = 0; j < nb_rx; j++) {
 
-				m = pkts_burst[j]; //change back to variable!!!!!!
-				//rte_prefetch0(rte_pktmbuf_mtod(m, void *));
+				m = pkts_burst[j]; 
                                 datalen = rte_pktmbuf_pkt_len(m);
                                 extract_l2packet(m,j+1,nb_rx,fp);
-
-//yockgen: troubleshooting
-//printf("\nj=pkts_burst[%d] nb_rx=%d\n",j,nb_rx);
-/*struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
-       char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
-       int datalen = rte_pktmbuf_pkt_len(m);  
-       struct rte_ether_addr src01 =  eth_hdr->s_addr;
-       struct rte_ether_addr dst01 =  eth_hdr->d_addr;
-
- char b_tx_tsp[20]; 
-        int j;
-        for(j=0;j<20;j++){
-           b_tx_tsp[j] = msg[j]; 
-	   printf("%c",msg[j]);
-        }
-        printf("\n");*/
-//end troubleshooting
-
-
-				/*m = pkts_burst[1]; //change back to variable!!!!!!
-				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
-                                datalen = rte_pktmbuf_pkt_len(m);
-                                extract_l2packet(m,j+1,nb_rx); 
-
-
-				m = pkts_burst[2]; //change back to variable!!!!!!
-				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
-                                datalen = rte_pktmbuf_pkt_len(m);
-                                extract_l2packet(m,j+1,nb_rx); */
-
 
                                 l2fwd_simple_forward(m, portid);
 
@@ -944,6 +895,7 @@ main(int argc, char **argv)
 	unsigned nb_ports_in_mask = 0;
 	unsigned int nb_lcores = 0;
 	unsigned int nb_mbufs;
+        struct rte_eth_stats eth_stats;
 
 	/* init EAL */
 	ret = rte_eal_init(argc, argv);
@@ -1159,8 +1111,8 @@ printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
 		rte_eth_tx_buffer_init(tx_buffer[portid], MAX_PKT_BURST);
 
 		ret = rte_eth_tx_buffer_set_err_callback(tx_buffer[portid],
-				rte_eth_tx_buffer_count_callback,
-				&port_statistics[portid].dropped);
+				rte_eth_tx_buffer_count_callback,NULL);
+				//&port_statistics[portid].dropped);
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE,
 			"Cannot set error callback for tx buffer on port %u\n",
@@ -1194,8 +1146,6 @@ printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
 				l2fwd_ports_eth_addr[portid].addr_bytes[4],
 				l2fwd_ports_eth_addr[portid].addr_bytes[5]);
 
-		/* initialize port stats */
-		memset(&port_statistics, 0, sizeof(port_statistics));
 	}
 
 	if (!nb_ports_available) {
@@ -1241,17 +1191,33 @@ printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
 	RTE_ETH_FOREACH_DEV(portid) {
 		if ((l2fwd_enabled_port_mask & (1 << portid)) == 0)
 			continue;
-		printf("Closing port %d...", portid);
+
+                rte_eth_stats_get(portid, &eth_stats);
+                printf("\nStatistics for port %u\n------------------------------"
+			   "\nPackets sent: %"PRIu64
+			   "\nPackets sent (bytes): %"PRIu64
+			   "\nPackets sent dropped: %"PRIu64
+			   "\nPackets received: %"PRIu64
+			   "\nPackets received (bytes): %"PRIu64
+			   "\nPackets received dropped (no RX buffer) : %"PRIu64
+			   "\nPackets received dropped (other errors) : %"PRIu64,
+			   portid,
+			   eth_stats.opackets,
+                           eth_stats.obytes,
+                           eth_stats.oerrors,
+			   eth_stats.ipackets,
+                           eth_stats.ibytes,
+                           eth_stats.imissed,
+                           eth_stats.ierrors);
+
+		printf("\nClosing port %d...", portid);
 		ret = rte_eth_dev_stop(portid);
 		if (ret != 0)
 			printf("rte_eth_dev_stop: err=%d, port=%d\n",
 			       ret, portid);
 		rte_eth_dev_close(portid);
-		printf(" Done\n");
 	}
-	printf("Bye...\n");
-
-        printf("\nttl pkt rtx = %d\n",iCnt);
+        printf("\nTotal RX = %d\n",iCnt);
 
 	return ret;
 }
