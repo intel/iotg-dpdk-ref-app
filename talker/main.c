@@ -116,7 +116,7 @@ struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
 #define MAX_TIMER_PERIOD 86400 /* 1 day max */
 
 /* Interval of sending packet  */
-static uint64_t pkt_interval = 20; /* default period is 20 miliseconds */
+static uint64_t pkt_interval = 500; /* default period is 500us */
 
 
 #define NSEC_PER_SEC 1000000000L
@@ -321,7 +321,7 @@ talker_main_loop(void)
 
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
 	struct rte_mbuf *m;
-	int sent, pkt_interval_ns=0;
+	int sent, pkt_interval_us=0;
 	unsigned lcore_id;
 	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc;
 	unsigned i, j, portid, nb_rx;
@@ -329,7 +329,6 @@ talker_main_loop(void)
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S *
 			BURST_TX_DRAIN_US;
 	struct rte_eth_dev_tx_buffer *buffer;
-        
 
 	prev_tsc = 0;
 	timer_tsc = 0;
@@ -363,7 +362,7 @@ tx_timestamp += 2 * NSEC_PER_SEC;
 
 	while (!force_quit) {
 
-            
+
 //tx_timestamp += 2000000;//opt->interval_ns;
 //debug
 
@@ -374,14 +373,15 @@ tx_timestamp += 2 * NSEC_PER_SEC;
 	 //ts.tv_nsec = sleep_timestamp % NSEC_PER_SEC;
 	 //clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts, NULL);
          // fprintf(stdout, "\nsleep time:tv_sec=%ld tv_nsec=%ld",ts.tv_sec,ts.tv_nsec);
-         pkt_interval_ns = pkt_interval * 1000;  
-         usleep(pkt_interval_ns); 
+         pkt_interval_us = pkt_interval;// * 1000;  
+         usleep(pkt_interval_us); 
          //cur_tsc = rte_rdtsc();
  
 
 //debug
         if (icounter++ >= 100000){
              force_quit = true;
+             sleep(5); 
         }
 
         int BURST_SIZE = 1; 
@@ -428,7 +428,7 @@ talker_usage(const char *prgname)
 	printf("%s [EAL options] -- -p PORTMASK [-q NQ]\n"
 	       "  -p PORTMASK: hexadecimal bitmask of ports to configure\n"
 	       "  -q NQ: number of queue (=ports) per lcore (default is 1)\n"
-	       "  -T PERIOD: packet will be transmit each PERIOD miliseconds (must >=2ms, 20ms by default)\n"
+	       "  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default)\n"
                "  -d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e "
                "  -D [1,0] (1 to enable, 0 default disable) "
 	       "  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)\n"
@@ -617,7 +617,7 @@ static const struct option lgopts[] = {
 static int
 talker_parse_args(int argc, char **argv)
 {
-	int opt, ret, interval_ms;
+	int opt, ret, interval_us;
 	char **argvopt;
 	int option_index;
 	char *prgname = argv[0];
@@ -651,13 +651,13 @@ talker_parse_args(int argc, char **argv)
 
 		/* timer period */
 		case 'T':
-			interval_ms = talker_parse_packet_interval(optarg);
-			if (interval_ms < 2) {
+			interval_us = talker_parse_packet_interval(optarg);
+			if (interval_us < 2) {
 				printf("invalid packet interval\n");
 				talker_usage(prgname);
 				return -1;
 			}
-			pkt_interval = interval_ms;
+			pkt_interval = interval_us;
 			break;
 
                 /* packet destination MAC address  */
