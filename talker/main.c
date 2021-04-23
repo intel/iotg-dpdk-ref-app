@@ -105,26 +105,17 @@ static struct rte_eth_conf port_conf = {
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
-/* Per-port statistics struct */
-struct l2fwd_port_statistics {
-	uint64_t tx;
-	uint64_t rx;
-	uint64_t dropped; 
-} __rte_cache_aligned;
-struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
-
 #define MAX_TIMER_PERIOD 86400 /* 1 day max */
 
 /* Interval of sending packet  */
 static uint64_t pkt_interval = 500; /* default period is 500us */
 
-
 #define NSEC_PER_SEC 1000000000L
-
 
 /*Destination mac address*/
 static uint8_t dst_mac_addr[6] = {0x00,0x00,0x00,0x00,0x00,0x00};
 
+/*Debug routine*/
 static int is_debug =1;
 static void debug0(const char* format,...){
 
@@ -172,8 +163,7 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 
 	buffer = tx_buffer[dst_port];
 	sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
-	if (sent)
-		port_statistics[dst_port].tx += sent;
+
 }
 
 static uint64_t get_time_nanosec(clockid_t clkid)
@@ -394,21 +384,15 @@ tx_timestamp += 2 * NSEC_PER_SEC;
 				buffer = tx_buffer[portid];
 
 				sent = rte_eth_tx_buffer_flush(portid, 0, buffer);
-				if (sent)
-					port_statistics[portid].tx += sent;
 	}
-
 
         for(i=0;i<BURST_SIZE;i++)
 		rte_pktmbuf_free(pkt[i]);
-
 
         if (is_debug==0){
               printf("\r                ");
               printf("\rPacket sent: %d",++iCnt);
         }
-
-
 
    }
 
@@ -1021,7 +1005,7 @@ main(int argc, char **argv)
 
 		ret = rte_eth_tx_buffer_set_err_callback(tx_buffer[portid],
 				rte_eth_tx_buffer_count_callback,
-				&port_statistics[portid].dropped);
+				NULL);
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE,
 			"Cannot set error callback for tx buffer on port %u\n",
@@ -1052,9 +1036,6 @@ main(int argc, char **argv)
 				l2fwd_ports_eth_addr[portid].addr_bytes[3],
 				l2fwd_ports_eth_addr[portid].addr_bytes[4],
 				l2fwd_ports_eth_addr[portid].addr_bytes[5]);
-
-		/* initialize port stats */
-		memset(&port_statistics, 0, sizeof(port_statistics));
 	}
 
 	if (!nb_ports_available) {
@@ -1076,12 +1057,31 @@ main(int argc, char **argv)
 	}
 
 
-        //struct rte_eth_stats eth_stats;
+        struct rte_eth_stats eth_stats;
 	RTE_ETH_FOREACH_DEV(portid) {
 		if ((l2fwd_enabled_port_mask & (1 << portid)) == 0)
 			continue;
 
-		printf("Closing port %d...", portid);
+                rte_eth_stats_get(portid, &eth_stats);
+                printf("\nStatistics for port %u\n------------------------------"
+                           "\nPackets sent: %"PRIu64
+                           "\nPackets sent (bytes): %"PRIu64
+                           "\nPackets sent dropped: %"PRIu64
+                           "\nPackets received: %"PRIu64
+                           "\nPackets received (bytes): %"PRIu64
+                           "\nPackets received dropped (no RX buffer) : %"PRIu64
+                           "\nPackets received dropped (other errors) : %"PRIu64,
+                           portid,
+                           eth_stats.opackets,
+                           eth_stats.obytes,
+                           eth_stats.oerrors,
+                           eth_stats.ipackets,
+                           eth_stats.ibytes,
+                           eth_stats.imissed,
+                           eth_stats.ierrors);
+
+
+		printf("\nClosing port %d...", portid);
 		ret = rte_eth_dev_stop(portid);
 		if (ret != 0)
 			printf("rte_eth_dev_stop: err=%d, port=%d\n",
