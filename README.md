@@ -74,22 +74,18 @@ If you want to run using bifurcated level PMD like AF_PACKET, AF_XDP (mean still
 
 sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8  -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1  
 
-Route Packet to queue 1 in listener
+Route Packet to queue 3 in listener
 ----------------------------------
 If you're using PTP to sync clock between talker and listener mentioned in above section, please route the listener packet RX (receiving/ingress) to queue=1 as below:  
 
-ethtool -S enp169s0 | grep rx_ | grep packets 
 ethtool -K enp169s0 ntuple on 
-#routed to queue 1 
-ethtool -N enp169s0 flow-type ether proto 0x0800 queue 1  
-#default ptp queue 
-ethtool -N enp169s0 flow-type ether proto 0x88f7 queue 0  
+ethtool -N enp169s0 flow-type ether vlan 24576 vlan-mask 0x1FFF action 3 
 
-//validate result 
-ethtool --show-ntuple enp169s0  
+//validate result  
+ethtool --show-ntuple enp169s0   
 
-//running listner on rx queue=1  
-sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8,start_queue=1 -- -p 0x1 -T 1     
+//running listner on rx queue=3    
+sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8,start_queue=3 -- -p 0x1 -T 1 -D 1     
 
 RUN Talker 
 ==========
@@ -99,18 +95,9 @@ compile:
 make static  
 
 run:  
-sudo /home/yockgen/dpdk/examples/talker/build/talker -l 1 -n 1 -a 0000:00:09.0 -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1 -d 08:00:27:cf:69:3e  
+sudo /home/yockgen/dpdk/examples/talker/build/talker -l 1 -n 1 -a 0000:00:09.0 -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1 -d 08:00:27:cf:69:3e  -D 1
 
 If you want to run using bifurcated level PMD like AF_PACKET, AF_XDP (mean still through Linux kernel and share NIC with other non-DPDK app), please do not bring down the interface (ifconfig xxx down) and ignore the dpdk-devbind.py steps, run following:  
 
 sudo /home/yockgen/dpdk-demo01/l2fwd/build/talker -l 1 -n 1 --vdev=net_af_xdp1,iface=enp0s9 -- -p 0x1 -T 1 -d 08:00:27:cf:69:3e  
-
-
-
-RUN L3FWD  - WIP
-==========================
-working but not clear:  
-/home/yockgen/dpdk/examples/l3fwd/build/l3fwd -l 1 -n 4  --  -p 0x1 --config="(0,0,1)" --parse-ptype  
-source code changed to extract packet info:  
-root@yockgen-VirtualBox:/home/yockgen/dpdk/examples/l3fwd# nano +249 ./l3fwd_lpm.c
 

@@ -105,40 +105,29 @@ static struct rte_eth_conf port_conf = {
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
-/* Per-port statistics struct */
-struct l2fwd_port_statistics {
-	uint64_t tx;
-	uint64_t rx;
-	uint64_t dropped; 
-} __rte_cache_aligned;
-struct l2fwd_port_statistics port_statistics[RTE_MAX_ETHPORTS];
-
 #define MAX_TIMER_PERIOD 86400 /* 1 day max */
 
-/* A tsc-based timer responsible for triggering statistics printout */
-static uint64_t timer_period = 10; /* default period is 10 seconds */
-
+/* Interval of sending packet  */
+static uint64_t pkt_interval = 500; /* default period is 500us */
 
 #define NSEC_PER_SEC 1000000000L
-
-
 
 /*Destination mac address*/
 static uint8_t dst_mac_addr[6] = {0x00,0x00,0x00,0x00,0x00,0x00};
 
+/*Debug routine*/
+static int is_debug =1;
+static void debug0(const char* format,...){
 
+  if (is_debug==0) return;
 
-static long diff_us(struct timespec t1, struct timespec t2)
-{
-    struct timespec diff;
-    if (t2.tv_nsec-t1.tv_nsec < 0) {
-        diff.tv_sec  = t2.tv_sec - t1.tv_sec - 1;
-        diff.tv_nsec = t2.tv_nsec - t1.tv_nsec + 1000000000;
-    } else {
-        diff.tv_sec  = t2.tv_sec - t1.tv_sec;
-        diff.tv_nsec = t2.tv_nsec - t1.tv_nsec;
-    }
-    return (diff.tv_sec * 1000000.0 + diff.tv_nsec / 1000.0);
+  char buffer[1000];
+  va_list args;
+  va_start (args, format);
+  vsnprintf (buffer, 999, format, args);
+  printf ("%s",buffer);
+  va_end(args);
+
 }
 
 
@@ -174,8 +163,7 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 
 	buffer = tx_buffer[dst_port];
 	sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
-	if (sent)
-		port_statistics[dst_port].tx += sent;
+
 }
 
 static uint64_t get_time_nanosec(clockid_t clkid)
@@ -184,6 +172,15 @@ static uint64_t get_time_nanosec(clockid_t clkid)
 	struct timespec now;
 	clock_gettime(clkid, &now);
 	return now.tv_sec * NSEC_PER_SEC + now.tv_nsec;
+}
+
+static uint64_t get_time_nanosec_hwtsp(int port)
+{
+
+	uint64_t ticks;
+	rte_eth_read_clock(port, &ticks);
+	return ticks;
+
 }
 
 static int idx = 0;
@@ -202,7 +199,9 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 
 
         uint64_t tx_tsp  = get_time_nanosec(CLOCK_REALTIME); 
-        printf("\nclock_gettime %"PRIu64
+        //uint64_t tx_tsp  = get_time_nanosec_hwtsp(0); //hardware timestamp
+
+        debug0("\nclock_gettime %"PRIu64
                ",idx %d", tx_tsp,++idx);
 
         char b_tstamp[TIME_STAMP_MSG_SIZE]; 
@@ -218,18 +217,17 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
         memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
 
 
-
 	struct Message *msg;
 	struct rte_ether_addr s_addr = {{0x14,0x02,0xEC,0x89,0x8D,0x24}};
 	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
- 
-	uint16_t ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);//0x0800;//0x0a00;
-        /* workaround to steer the packet to another queue */
-        ether_type = 0xb62c;
+
+	//uint16_t ether_type  = htons(0x0a00);//129;//rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);//0x0800;//0x0a00;
+        uint16_t ether_type = 0xb62c;//htons(0xb62c);
+        debug0("\nether_type=%"PRIu64,ether_type);
 
         int BURST_SIZE = pkt_size;
 
- 
+
         struct rte_mbuf *m;
 	int i;
 	for(i=0;i<BURST_SIZE;i++) {
@@ -249,8 +247,8 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 		/* we create TSN packet using Vlan tag with highest priority */
 
 		struct rte_vlan_hdr *vh;
-		/* Priority code point 7 (highest), 0 (default) */
-		uint16_t vlan_priority = 3; /* 0x3 */
+		// Priority code point 7 (highest), 0 (default) 
+		uint16_t vlan_priority = 3; 
 		uint16_t vlan_id = VLAN_ID;
                 uint16_t vlan_tag = (vlan_priority << 13) | vlan_id;
                 uint16_t vlan_tag_be = rte_cpu_to_be_16(vlan_tag);
@@ -270,14 +268,22 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 
 	}
 
-       printf("\nTest: Sending Packet (Timestamp:%s) To DESTINATION MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
+
+       debug0("\nSending Packet (Timestamp:%s) SRC:%02X:%02X:%02X:%02X:%02X:%02X DST:%02X:%02X:%02X:%02X:%02X:%02X\n",
                                 msg->data, 
+                                eth_hdr->s_addr.addr_bytes[0],
+                                eth_hdr->s_addr.addr_bytes[1],
+                                eth_hdr->s_addr.addr_bytes[2],
+                                eth_hdr->s_addr.addr_bytes[3],
+                                eth_hdr->s_addr.addr_bytes[4],
+                                eth_hdr->s_addr.addr_bytes[5],
                                 eth_hdr->d_addr.addr_bytes[0],
                                 eth_hdr->d_addr.addr_bytes[1],
                                 eth_hdr->d_addr.addr_bytes[2],
                                 eth_hdr->d_addr.addr_bytes[3],
                                 eth_hdr->d_addr.addr_bytes[4],
-                                eth_hdr->d_addr.addr_bytes[5]);
+                                eth_hdr->d_addr.addr_bytes[5]
+                                );
 
         return 0;
 
@@ -295,15 +301,17 @@ static uint64_t get_time_sec(clockid_t clkid)
 
 
 /* main processing loop */
+
+static int iCnt =0;
 static void
 talker_main_loop(void)
 {
 
-#define TIME_STAMP_MSG_SIZE 36  
+#define TIME_STAMP_MSG_SIZE 36
 
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
 	struct rte_mbuf *m;
-	int sent;
+	int sent, pkt_interval_us=0;
 	unsigned lcore_id;
 	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc;
 	unsigned i, j, portid, nb_rx;
@@ -344,28 +352,29 @@ tx_timestamp += 2 * NSEC_PER_SEC;
 
 	while (!force_quit) {
 
+
 //tx_timestamp += 2000000;//opt->interval_ns;
 //debug
 
-         struct timespec ts;
-         uint64_t sleep_timestamp;
-         sleep_timestamp = tx_timestamp;
- 	 ts.tv_sec = sleep_timestamp / NSEC_PER_SEC;
-	 ts.tv_nsec = sleep_timestamp % NSEC_PER_SEC;
+         //struct timespec ts;
+         //uint64_t sleep_timestamp;
+         //sleep_timestamp = tx_timestamp;
+ 	 //ts.tv_sec = sleep_timestamp / NSEC_PER_SEC;
+	 //ts.tv_nsec = sleep_timestamp % NSEC_PER_SEC;
 	 //clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts, NULL);
          // fprintf(stdout, "\nsleep time:tv_sec=%ld tv_nsec=%ld",ts.tv_sec,ts.tv_nsec);
-         usleep(2000); //2ms
-         //sleep(1);
+         pkt_interval_us = pkt_interval;// * 1000;  
+         usleep(pkt_interval_us); 
+         //cur_tsc = rte_rdtsc();
+ 
 
 //debug
-                cur_tsc = rte_rdtsc();
-                if (icounter++ >= 50000){
-                    force_quit = true;  
-                }  
+        if (icounter++ >= 100000){
+             force_quit = true;
+             sleep(5); 
+        }
 
-
-        int BURST_SIZE = 1;
- 
+        int BURST_SIZE = 1; 
         struct rte_mbuf *pkt[BURST_SIZE];
         int ret01 = construct_packet(pkt, BURST_SIZE);
         uint16_t nb_tx = rte_eth_tx_burst(0,0,pkt,BURST_SIZE);
@@ -375,20 +384,19 @@ tx_timestamp += 2 * NSEC_PER_SEC;
 				buffer = tx_buffer[portid];
 
 				sent = rte_eth_tx_buffer_flush(portid, 0, buffer);
-				if (sent)
-					port_statistics[portid].tx += sent;
 	}
-
 
         for(i=0;i<BURST_SIZE;i++)
 		rte_pktmbuf_free(pkt[i]);
 
+        if (is_debug==0){
+              printf("\r                ");
+              printf("\rPacket sent: %d",++iCnt);
+        }
 
    }
 
 }
-
-
 
 static int
 talker_launch_one_lcore(__rte_unused void *dummy)
@@ -404,8 +412,9 @@ talker_usage(const char *prgname)
 	printf("%s [EAL options] -- -p PORTMASK [-q NQ]\n"
 	       "  -p PORTMASK: hexadecimal bitmask of ports to configure\n"
 	       "  -q NQ: number of queue (=ports) per lcore (default is 1)\n"
-	       "  -T PERIOD: statistics will be refreshed each PERIOD seconds (0 to disable, 10 default, 86400 maximum)\n"
-               "  -D Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e "
+	       "  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default)\n"
+               "  -d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e "
+               "  -D [1,0] (1 to enable, 0 default disable) "
 	       "  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)\n"
 	       "      When enabled:\n"
 	       "       - The source MAC address is replaced by the TX port MAC address\n"
@@ -503,7 +512,7 @@ talker_parse_nqueue(const char *q_arg)
 }
 
 static int
-talker_parse_timer_period(const char *q_arg)
+talker_parse_packet_interval(const char *q_arg)
 {
 	char *end = NULL;
 	int n;
@@ -523,11 +532,8 @@ talker_parse_dst_mac(const char *q_arg)
 {
 
   int n = -5;
-  //printf ("\ndestination mac = %s\n", q_arg);
 
-
-  char dst_mac_str[] = "000000000000";//"00a05056a810";
-
+  char dst_mac_str[] = "000000000000";
   for (int i =0,j=0; i <17; i++)
   {
      if (q_arg[i] != ':')
@@ -546,19 +552,29 @@ talker_parse_dst_mac(const char *q_arg)
             dummy[i] = dst_mac_str[i+j];
         num = strtol(dummy, NULL, 16);
         j=j+2;
-        //printf("0x%02x\n", num);
         dst_mac_addr[k] = num;
-
   }
 
   return n;
 }
 
+static int
+l2fwd_parse_debug(const char *q_arg)
+{
+	if (*q_arg == '1')
+             is_debug = 1;
+	else
+	     is_debug = 0;
+
+        return 1;
+}
+
 static const char short_options[] =
 	"p:"  /* portmask */
 	"q:"  /* number of queues */
-	"T:"  /* timer period */
+	"T:"  /* packet sent interval  */
         "d:"  /* destination mac adddress */ 
+        "D:"  /*debug mode*/
 	;
 
 #define CMD_LINE_OPT_MAC_UPDATING "mac-updating"
@@ -585,7 +601,7 @@ static const struct option lgopts[] = {
 static int
 talker_parse_args(int argc, char **argv)
 {
-	int opt, ret, timer_secs;
+	int opt, ret, interval_us;
 	char **argvopt;
 	int option_index;
 	char *prgname = argv[0];
@@ -596,7 +612,6 @@ talker_parse_args(int argc, char **argv)
 	while ((opt = getopt_long(argc, argvopt, short_options,
 				  lgopts, &option_index)) != EOF) {
 
-                //printf("\n\nyockgen=%d %s\n\n",opt,optarg);    
 		switch (opt) {
 		/* portmask */
 		case 'p':
@@ -620,13 +635,13 @@ talker_parse_args(int argc, char **argv)
 
 		/* timer period */
 		case 'T':
-			timer_secs = talker_parse_timer_period(optarg);
-			if (timer_secs < 0) {
-				printf("invalid timer period\n");
+			interval_us = talker_parse_packet_interval(optarg);
+			if (interval_us < 2) {
+				printf("invalid packet interval\n");
 				talker_usage(prgname);
 				return -1;
 			}
-			timer_period = timer_secs;
+			pkt_interval = interval_us;
 			break;
 
                 /* packet destination MAC address  */
@@ -640,6 +655,12 @@ talker_parse_args(int argc, char **argv)
 
 		      }
                       break;
+
+                /*debug option*/ 
+                case 'D':
+                        ret = l2fwd_parse_debug(optarg);
+			break;
+
 
                 /* long options */
 		case CMD_LINE_OPT_PORTMAP_NUM:
@@ -812,8 +833,6 @@ main(int argc, char **argv)
 
 	printf("MAC updating %s\n", mac_updating ? "enabled" : "disabled");
 
-	/* convert to number of cycles */
-	timer_period *= rte_get_timer_hz();
 
 	nb_ports = rte_eth_dev_count_avail();
 	if (nb_ports == 0)
@@ -894,8 +913,7 @@ main(int argc, char **argv)
 		printf("Lcore %u: RX port %u TX port %u\n", rx_lcore_id,
 		       portid, l2fwd_dst_ports[portid]);
 	}
-        
-        //exit(1); 
+ 
 	nb_mbufs = RTE_MAX(nb_ports * (nb_rxd + nb_txd + MAX_PKT_BURST +
 		nb_lcores * MEMPOOL_CACHE_SIZE), 8192U);
 
@@ -987,7 +1005,7 @@ main(int argc, char **argv)
 
 		ret = rte_eth_tx_buffer_set_err_callback(tx_buffer[portid],
 				rte_eth_tx_buffer_count_callback,
-				&port_statistics[portid].dropped);
+				NULL);
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE,
 			"Cannot set error callback for tx buffer on port %u\n",
@@ -1004,8 +1022,6 @@ main(int argc, char **argv)
 			rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
 				  ret, portid);
 
-		printf("done: \n");
-
 		ret = rte_eth_promiscuous_enable(portid);
 		if (ret != 0)
 			rte_exit(EXIT_FAILURE,
@@ -1020,17 +1036,6 @@ main(int argc, char **argv)
 				l2fwd_ports_eth_addr[portid].addr_bytes[3],
 				l2fwd_ports_eth_addr[portid].addr_bytes[4],
 				l2fwd_ports_eth_addr[portid].addr_bytes[5]);
-
-                /*yockgen: check hardware timestamping*/
-                /*if (!(dev_info.rx_offload_capa & DEV_RX_OFFLOAD_TIMESTAMP)) {
-				rte_exit(EXIT_FAILURE,
-					"ERROR: Port %u does not support hardware time stamping %"PRIu64
-                                        "\n",
-					portid,dev_info.rx_offload_capa) ;
-		}*/
-
-		/* initialize port stats */
-		memset(&port_statistics, 0, sizeof(port_statistics));
 	}
 
 	if (!nb_ports_available) {
@@ -1039,7 +1044,6 @@ main(int argc, char **argv)
 	}
 
 	check_all_ports_link_status(l2fwd_enabled_port_mask);
-
 
 
 	ret = 0;
@@ -1057,38 +1061,33 @@ main(int argc, char **argv)
 	RTE_ETH_FOREACH_DEV(portid) {
 		if ((l2fwd_enabled_port_mask & (1 << portid)) == 0)
 			continue;
-                
-                rte_eth_stats_get(portid, &eth_stats); 
+
+                rte_eth_stats_get(portid, &eth_stats);
                 printf("\nStatistics for port %u\n------------------------------"
-			   "\nPackets sent: %"PRIu64
-			   "\nPackets sent (bytes): %"PRIu64
-			   "\nPackets sent dropped: %"PRIu64
-			   "\nPackets received: %"PRIu64
-			   "\nPackets received (bytes): %"PRIu64
-			   "\nPackets received dropped (no RX buffer) : %"PRIu64
-			   "\nPackets received dropped (other errors) : %"PRIu64
-                           "\n",
-			   portid,
-			   eth_stats.opackets,
+                           "\nPackets sent: %"PRIu64
+                           "\nPackets sent (bytes): %"PRIu64
+                           "\nPackets sent dropped: %"PRIu64
+                           "\nPackets received: %"PRIu64
+                           "\nPackets received (bytes): %"PRIu64
+                           "\nPackets received dropped (no RX buffer) : %"PRIu64
+                           "\nPackets received dropped (other errors) : %"PRIu64,
+                           portid,
+                           eth_stats.opackets,
                            eth_stats.obytes,
-                           eth_stats.oerrors,  
-			   eth_stats.ipackets,
-                           eth_stats.ibytes, 
+                           eth_stats.oerrors,
+                           eth_stats.ipackets,
+                           eth_stats.ibytes,
                            eth_stats.imissed,
                            eth_stats.ierrors);
 
 
-
-		printf("Closing port %d...", portid);
+		printf("\nClosing port %d...", portid);
 		ret = rte_eth_dev_stop(portid);
 		if (ret != 0)
 			printf("rte_eth_dev_stop: err=%d, port=%d\n",
 			       ret, portid);
 		rte_eth_dev_close(portid);
-		printf(" Done\n");
 	}
-
-        //printf ("\nPacket Dropped:%"PRIu64,port_statistics[portid].dropped); 
 
 
 	printf("\nBye...\n");
