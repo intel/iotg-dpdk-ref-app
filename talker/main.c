@@ -115,6 +115,9 @@ static uint64_t pkt_interval = 500; /* default period is 500us */
 /*Destination mac address*/
 static uint8_t dst_mac_addr[6] = {0x00,0x00,0x00,0x00,0x00,0x00};
 
+/*total packet to be send*/
+static int ttl_pkt_cnt = 100000;
+
 /*Debug routine*/
 static int is_debug =1;
 static void debug0(const char* format,...){
@@ -156,7 +159,6 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 
 
 	dst_port = l2fwd_dst_ports[portid];
-        //printf("\ndst_port id =%d", dst_port);
 
 	if (mac_updating)
 		l2fwd_mac_updating(m, dst_port);
@@ -292,7 +294,6 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 static uint64_t get_time_sec(clockid_t clkid)
 {
 
-
 	struct timespec now;
 
 	clock_gettime(clkid, &now);
@@ -303,8 +304,7 @@ static uint64_t get_time_sec(clockid_t clkid)
 /* main processing loop */
 
 static int iCnt =0;
-static void
-talker_main_loop(void)
+static void talker_main_loop(void)
 {
 
 #define TIME_STAMP_MSG_SIZE 36
@@ -352,7 +352,6 @@ tx_timestamp += 2 * NSEC_PER_SEC;
 
 	while (!force_quit) {
 
-
 //tx_timestamp += 2000000;//opt->interval_ns;
 //debug
 
@@ -363,13 +362,11 @@ tx_timestamp += 2 * NSEC_PER_SEC;
 	 //ts.tv_nsec = sleep_timestamp % NSEC_PER_SEC;
 	 //clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts, NULL);
          // fprintf(stdout, "\nsleep time:tv_sec=%ld tv_nsec=%ld",ts.tv_sec,ts.tv_nsec);
-         pkt_interval_us = pkt_interval;// * 1000;  
+         pkt_interval_us = pkt_interval;
          usleep(pkt_interval_us); 
          //cur_tsc = rte_rdtsc();
- 
-
 //debug
-        if (icounter++ >= 100000){
+        if (icounter++ > ttl_pkt_cnt){
              force_quit = true;
              sleep(5); 
         }
@@ -415,6 +412,7 @@ talker_usage(const char *prgname)
 	       "  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default)\n"
                "  -d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e "
                "  -D [1,0] (1 to enable, 0 default disable) "
+               "  -c Total packet to be send to destination (100000 by default, must not >1500000)"
 	       "  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)\n"
 	       "      When enabled:\n"
 	       "       - The source MAC address is replaced by the TX port MAC address\n"
@@ -569,12 +567,31 @@ l2fwd_parse_debug(const char *q_arg)
         return 1;
 }
 
+static int
+l2fwd_parse_ttl_pkt(const char *q_arg)
+{
+        char *end = NULL;
+	int n;
+
+	/* parse number string */
+	n = strtol(q_arg, &end, 10);
+	if ((q_arg[0] == '\0') || (end == NULL) || (*end != '\0'))
+		return -1;
+	if (n >= 1500000)
+		return -1;
+
+        ttl_pkt_cnt = n;
+	return n;
+}
+
+
 static const char short_options[] =
 	"p:"  /* portmask */
 	"q:"  /* number of queues */
 	"T:"  /* packet sent interval  */
         "d:"  /* destination mac adddress */ 
         "D:"  /*debug mode*/
+        "c:"  /*total packet to be send*/
 	;
 
 #define CMD_LINE_OPT_MAC_UPDATING "mac-updating"
@@ -661,6 +678,10 @@ talker_parse_args(int argc, char **argv)
                         ret = l2fwd_parse_debug(optarg);
 			break;
 
+                /*total packet to be send*/ 
+                case 'c':
+                        ret = l2fwd_parse_ttl_pkt(optarg);
+			break;
 
                 /* long options */
 		case CMD_LINE_OPT_PORTMAP_NUM:
