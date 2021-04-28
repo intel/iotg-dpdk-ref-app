@@ -216,7 +216,7 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 
         //original code 
 	struct Message obj;
-        memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
+        rte_memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
 
 
 	struct Message *msg;
@@ -381,10 +381,8 @@ tx_timestamp += 2 * NSEC_PER_SEC;
 				buffer = tx_buffer[portid];
 
 				sent = rte_eth_tx_buffer_flush(portid, 0, buffer);
-	}
-
-        for(i=0;i<BURST_SIZE;i++)
 		rte_pktmbuf_free(pkt[i]);
+	}
 
         if (is_debug==0){
               printf("\r                ");
@@ -464,7 +462,7 @@ talker_parse_port_pair_config(const char *q_arg)
 		if (size >= sizeof(s))
 			return -1;
 
-		memcpy(s, p, size);
+		rte_memcpy(s, p, size);
 		s[size] = '\0';
 		if (rte_strsplit(s, sizeof(s), str_fld,
 				 _NUM_FLD, ',') != _NUM_FLD)
