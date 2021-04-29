@@ -164,8 +164,8 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
        struct rte_ether_addr dst01 =  eth_hdr->d_addr;
 
 
-       if (eth_hdr->ether_type != TALKER_PACKET_ETH_TYPE) {
-            //return; 
+       if (unlikely(eth_hdr->ether_type != TALKER_PACKET_ETH_TYPE)) {
+            //return;
        }
 
        if (l2fwd_ports_eth_addr[0].addr_bytes[0] != dst01.addr_bytes[0] ||
@@ -473,7 +473,7 @@ l2fwd_parse_port_pair_config(const char *q_arg)
 		if (size >= sizeof(s))
 			return -1;
 
-		memcpy(s, p, size);
+		rte_memcpy(s, p, size);
 		s[size] = '\0';
 		if (rte_strsplit(s, sizeof(s), str_fld,
 				 _NUM_FLD, ',') != _NUM_FLD)
