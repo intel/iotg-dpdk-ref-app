@@ -107,8 +107,17 @@ Run
 ====
 sudo ./dpdk-demo01/talker/build/talker -l 1 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=1  -- -p 0x1 -T 300 -d  00:A0:C9:00:00:02 -D 0 -c 150000 
 
--T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default, 5000000 max)   
--d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e    
--D [1,0] (1 to enable, 0 default disable)    
--c Total packet to be send to destination (100000 by default, must not >1500000)    
+Options  
+  -p PORTMASK: hexadecimal bitmask of ports to configure  
+  -q NQ: number of queue (=ports) per lcore (default is 1)  
+  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default, 5000000 max)  
+  -d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e  
+  -D [1,0] (1 to enable debug mode, 0 default disable debug mode)  
+  -c Total packet to be send to destination (100000 by default, must not >1500000)  
+  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)  
+      When enabled:  
+       - The source MAC address is replaced by the TX port MAC address  
+       - The destination MAC address is replaced by 02:00:00:00:00:TX_PORT_ID  
+  --portmap: Configure forwarding port pair mapping  
+              Default: alternate port pairs  
 
