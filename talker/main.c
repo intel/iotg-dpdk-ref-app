@@ -105,9 +105,8 @@ static struct rte_eth_conf port_conf = {
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
-#define MAX_TIMER_PERIOD 86400 /* 1 day max */
-
 /* Interval of sending packet  */
+#define MAX_PKT_INTERVAL 5000000 /* 5 second */
 static uint64_t pkt_interval = 500; /* default period is 500us */
 
 #define NSEC_PER_SEC 1000000000L
@@ -407,7 +406,7 @@ talker_usage(const char *prgname)
 	printf("%s [EAL options] -- -p PORTMASK [-q NQ]\n"
 	       "  -p PORTMASK: hexadecimal bitmask of ports to configure\n"
 	       "  -q NQ: number of queue (=ports) per lcore (default is 1)\n"
-	       "  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default)\n"
+	       "  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default, 5000000 max)\n"
                "  -d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e "
                "  -D [1,0] (1 to enable, 0 default disable) "
                "  -c Total packet to be send to destination (100000 by default, must not >1500000)"
@@ -517,7 +516,7 @@ talker_parse_packet_interval(const char *q_arg)
 	n = strtol(q_arg, &end, 10);
 	if ((q_arg[0] == '\0') || (end == NULL) || (*end != '\0'))
 		return -1;
-	if (n >= MAX_TIMER_PERIOD)
+	if (n > MAX_PKT_INTERVAL)
 		return -1;
 
 	return n;
