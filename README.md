@@ -1,11 +1,10 @@
-HARDWARE/VM PLATFORM
-=====================
-VM:VirtualBox OS: UBUNTU 20.04  
-NIC: 4 (1 Primary Bridge Mode, 3 INTERNAL - for dpdk prototype)  
-Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 02)  - all 4 
+HARDWARE Requirement  
+====================  
+Two PC/VM/boards with Network Connectivity. Both machines' IP should be ping able to each other.   
+OS: Linux Kernel with XDP support, tested on Ubuntu 20.04 kernel 5.4 and 5.10  
 
-INSTALL DPDK
-====================
+INSTALL DPDK 20.11 or Later
+===========================
 https://core.dpdk.org/doc/quick-start/
 
 SETUP ENVIRONMENT
@@ -21,27 +20,10 @@ mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
 echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages  
 
 
-Bring Down NIC for DPDK prototype
----------------------------------
-/home/yockgenm/dpdk# ifconfig enp0s8 down  
-/home/yockgenm/dpdk# ifconfig enp0s9 down  
-
-Enable unsafe iommu mode (need study why such)
----------------------------------------------
-echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode  
-
-Bind Down NICs to DPDK compatible driver
--------------------------------------------
-/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -b vfio-pci 0000:00:08.0  
-/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -b vfio-pci 0000:00:09.0  
-
-To confirm:
-/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -s  
-
 PTP CLOCK SYNC IN BOTH TALKER AND LISTENER MACHINES 
 ====================================================  
 Run following in TALKER machine and follow by LISTENER machine:  
-sudo /ptp/time_sync.sh i225 
+sudo /ptp/time_sync.sh i225     
 
 Validate following in listener machine 
 --------------------------------------- 
@@ -67,37 +49,55 @@ An executable program listen to all L2 (MAC/Ethernet level) broadcasting data fr
 compile:  
 make static  
 
-run:  
-sudo /home/yockgen/dpdk/examples/listener/build/listener -l 2-3 -n 1 -a 0000:00:08.0 -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1
-
-If you want to run using bifurcated level PMD like AF_PACKET, AF_XDP (mean still through Linux kernel and share NIC with other non-DPDK app), please do not bring down the interface (ifconfig xxx down) and ignore the dpdk-devbind.py steps, run following:  
-
-sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8  -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1  
-
-Route Packet to queue 3 in listener
+Route Packet to queue 3 
 ----------------------------------
-If you're using PTP to sync clock between talker and listener mentioned in above section, please route the listener packet RX (receiving/ingress) to queue=1 as below:  
+If you're using PTP to sync clock between talker and listener mentioned in above section, please route the listener packet RX (receiving/ingress) to queue 3 as below:  
 
 ethtool -K enp169s0 ntuple on 
 ethtool -N enp169s0 flow-type ether vlan 24576 vlan-mask 0x1FFF action 3 
 
-//validate result  
+Validate result  
+---------------  
 ethtool --show-ntuple enp169s0   
 
-//running listner on rx queue=3    
-sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp0s8,start_queue=3 -- -p 0x1 -T 1 -D 1     
+Run on queue=3    
+-----------------------------  
+AF_XDP  
+**sudo /data/yockgenm/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=3 -- -p 0x1 -D 1**    
+
+
+Options  
+-p PORTMASK: hexadecimal bitmask of ports to configure  
+-q NQ: number of queue (=ports) per lcore (default is 1)  
+-f LATENCY OUTPUT FILENAME: length should be less than 30 characters, preferably with .csv extension. Default is 'default_listenerOPfile.csv' if option not provided  
+-D [1,0] (1 to enable debug mode, 0 default disable debug mode)  
+--[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)  
+      When enabled:  
+       - The source MAC address is replaced by the TX port MAC address  
+       - The destination MAC address is replaced by 02:00:00:00:00:TX_PORT_ID  
+--portmap: Configure forwarding port pair mapping  
+
 
 RUN Talker 
 ==========
-An executable program sending L2 (MAC/Ethernet level) data frame
+An executable program receiving L2 (MAC/Ethernet level) data frame
 
 compile:  
 make static  
 
-run:  
-sudo /home/yockgen/dpdk/examples/talker/build/talker -l 1 -n 1 -a 0000:00:09.0 -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1 -d 08:00:27:cf:69:3e  -D 1
+Run  
+====
+**sudo ./dpdk-demo01/talker/build/talker -l 1 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=1  -- -p 0x1 -T 300 -d  00:A0:C9:00:00:02 -D 0 -c 150000**   
 
-If you want to run using bifurcated level PMD like AF_PACKET, AF_XDP (mean still through Linux kernel and share NIC with other non-DPDK app), please do not bring down the interface (ifconfig xxx down) and ignore the dpdk-devbind.py steps, run following:  
-
-sudo /home/yockgen/dpdk-demo01/l2fwd/build/talker -l 1 -n 1 --vdev=net_af_xdp1,iface=enp0s9 -- -p 0x1 -T 1 -d 08:00:27:cf:69:3e  
-
+Options  
+  -p PORTMASK: hexadecimal bitmask of ports to configure  
+  -q NQ: number of queue (=ports) per lcore (default is 1)  
+  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default, 5000000 max)  
+  -d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e  
+  -D [1,0] (1 to enable debug mode, 0 default disable debug mode)  
+  -c Total packet to be send to destination (100000 by default, must not >1500000)  
+  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)  
+      When enabled:  
+       - The source MAC address is replaced by the TX port MAC address  
+       - The destination MAC address is replaced by 02:00:00:00:00:TX_PORT_ID  
+  --portmap: Configure forwarding port pair mapping  
