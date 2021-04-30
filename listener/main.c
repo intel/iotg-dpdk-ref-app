@@ -17,6 +17,7 @@
 #include <getopt.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <float.h>
 
 #include <rte_common.h>
 #include <rte_log.h>
@@ -107,15 +108,18 @@ static struct rte_eth_conf port_conf = {
 	},
 };
 
-struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
-
 
 #define MAX_TIMER_PERIOD 86400 /* 1 day max */
-
 /* A tsc-based timer responsible for triggering statistics printout */
 static uint64_t timer_period = 10; /* default period is 10 seconds */
 
-struct rte_flow *flow;
+/*  statistics struct */
+struct latency_stats {
+	int  median;
+	int  avg;
+} ltc_stats;
+
+struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
 static void debug0(const char* format,...){
 
@@ -148,8 +152,10 @@ static uint64_t get_time_nanosec_hwtsp(int port)
 
 }
 
+#define MX_PKT_RCV 2000000
 static int iCnt = 0; 
 static int pCnt = 0;
+static int a_latency[MX_PKT_RCV]; 
 static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl, FILE *fp)
 {
 
@@ -257,6 +263,16 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
         }
 
         debug0("\n");
+
+        if (delta_val>=0 && delta_val<= INT_MAX) //sanity check
+        {
+          a_latency[iCnt] = (int)delta_val;
+
+        }
+        else
+          a_latency[iCnt] = -1; //error
+
+
         iCnt++;
 
         if (is_debug==0){
@@ -314,6 +330,11 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 
 	buffer = tx_buffer[dst_port];
 	sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
+}
+
+int sort_compare (const void * a, const void * b)
+{
+  return ( *(int*)a - *(int*)b );
 }
 
 /* main processing loop */
@@ -402,6 +423,25 @@ l2fwd_main_loop(void)
 	}
 
         fclose(fp);
+
+        if (iCnt>2){
+            qsort (a_latency, iCnt, sizeof(int), sort_compare);
+            ltc_stats.median = a_latency[iCnt/2];
+
+            float sum=0.0,avg = 0.0;
+            int iActualCnt=0;
+            for (int i=0;i<iCnt;i++){
+               if (a_latency[i]>=0 && sum <= FLT_MAX){
+                 sum += (a_latency[i]/1000); //normalized the latency to avoid big number overflow
+                 iActualCnt++;
+               }
+               if (sum>=FLT_MAX) break; 
+            }
+            ltc_stats.avg = sum/iActualCnt*1000;  
+
+        }
+
+
 }
 
 
@@ -420,8 +460,8 @@ l2fwd_usage(const char *prgname)
 	printf("%s [EAL options] -- -p PORTMASK [-q NQ]\n"
 	       "  -p PORTMASK: hexadecimal bitmask of ports to configure\n"
 	       "  -q NQ: number of queue (=ports) per lcore (default is 1)\n"
-	       "  -T PERIOD: statistics will be refreshed each PERIOD seconds (0 to disable, 10 default, 86400 maximum)\n"
-	       "  -f FILENAME: File name length should be less than 30 characters, preferably with .csv extension\n"
+	       "  -f LATENCY OUTPUT FILENAME: length should be less than 30 characters, preferably with .csv extension. Default is 'default_listenerOPfile.csv' if option not provided\n"
+               "  -D [1,0] (1 to enable debug mode, 0 default disable debug mode)\n" 
 	       "  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)\n"
 	       "      When enabled:\n"
 	       "       - The source MAC address is replaced by the TX port MAC address\n"
@@ -789,9 +829,11 @@ signal_handler(int signum)
 	}
 }
 
+
 int
 main(int argc, char **argv)
 {
+
 	struct lcore_queue_conf *qconf;
 	int ret;
 	uint16_t nb_ports;
@@ -1085,7 +1127,7 @@ printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
 			   "\nPackets received: %"PRIu64
 			   "\nPackets received (bytes): %"PRIu64
 			   "\nPackets received dropped (no RX buffer) : %"PRIu64
-			   "\nPackets received dropped (other errors) : %"PRIu64,
+			   "\nPackets received dropped (other errors) : %"PRIu64, 
 			   portid,
 			   eth_stats.opackets,
                            eth_stats.obytes,
@@ -1095,13 +1137,21 @@ printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
                            eth_stats.imissed,
                            eth_stats.ierrors);
 
-		printf("\n\nClosing port %d...", portid);
+
+		printf("\n\nClosing port %d...\n", portid);
 		ret = rte_eth_dev_stop(portid);
 		if (ret != 0)
 			printf("rte_eth_dev_stop: err=%d, port=%d\n",
 			       ret, portid);
 		rte_eth_dev_close(portid);
 	}
-        
+
+        printf("\nSummary Statistics\n------------------------------\n"
+	       "Median of %d packets latency in microseconds (us):%d\n"
+	       "Average of %d packets latency in microseconds (us):%d\n\n",
+		iCnt,ltc_stats.median
+		,iCnt,ltc_stats.avg);
+
+
 	return ret;
 }
