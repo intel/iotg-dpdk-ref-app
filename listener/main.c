@@ -139,100 +139,6 @@ uint64_t get_time_nanosec(clockid_t clkid)
 }
 
 
-//yockgen:start
-
-
-
-
-//yockgen:end
-
-
-//rte_flow testing start
-
-static struct rte_flow *
-set_pkt_flow(uint16_t port_id, uint16_t rx_q,
-		uint32_t src_ip, uint32_t src_mask,
-		uint32_t dest_ip, uint32_t dest_mask,
-		struct rte_flow_error *error)
-{
-
-#define MAX_PATTERN_NUM		3
-#define MAX_ACTION_NUM		2
-
-	struct rte_flow_attr attr;
-	struct rte_flow_item pattern[MAX_PATTERN_NUM];
-	struct rte_flow_action action[MAX_ACTION_NUM];
-	struct rte_flow *flow = NULL;
-	struct rte_flow_action_queue queue = { .index = rx_q };
-	struct rte_flow_item_ipv4 ip_spec;
-	struct rte_flow_item_ipv4 ip_mask;
-	int res;
-
-	memset(pattern, 0, sizeof(pattern));
-	memset(action, 0, sizeof(action));
-
-	/*
-	 * set the rule attribute.
-	 * in this case only ingress packets will be checked.
-	 */
-	memset(&attr, 0, sizeof(struct rte_flow_attr));
-	attr.ingress = 1;
-
-	/*
-	 * create the action sequence.
-	 * one action only,  move packet to queue
-	 */
-	action[0].type = RTE_FLOW_ACTION_TYPE_QUEUE;
-	action[0].conf = &queue;
-	action[1].type = RTE_FLOW_ACTION_TYPE_END;
-
-	/*
-	 * set the first level of the pattern (ETH).
-	 * since in this example we just want to get the
-	 * ipv4 we set this level to allow all.
-	 */ 
-	pattern[0].type = RTE_FLOW_ITEM_TYPE_ETH;
- 
-	/*
-	 * setting the second level of the pattern (IP).
-	 * in this example this is the level we care about
-	 * so we set it according to the parameters.
-	 */
-	memset(&ip_spec, 0, sizeof(struct rte_flow_item_ipv4));
-	memset(&ip_mask, 0, sizeof(struct rte_flow_item_ipv4));
-	ip_spec.hdr.dst_addr = htonl(dest_ip);
-	ip_mask.hdr.dst_addr = dest_mask;
-	ip_spec.hdr.src_addr = htonl(src_ip);
-	ip_mask.hdr.src_addr = src_mask;
-        pattern[1].type= RTE_FLOW_ITEM_TYPE_IPV4;
-	pattern[1].spec = &ip_spec;
-	pattern[1].mask = &ip_mask;
-
-	/* the final level must be always type end */
-	pattern[2].type = RTE_FLOW_ITEM_TYPE_END;
-
-
-       /* only protocol is used */
-        const struct rte_flow_item_ipv4 *mask = pattern[1].mask;
-	if (mask->hdr.dst_addr){
-
-		printf("\nIPv4 only support protocol\n");
-       }
-
-
-	res = rte_flow_validate(port_id, &attr, pattern, action, error);
-	if (!res){
-	        printf("\n\ncalled!!\n\n");  
-        	flow = rte_flow_create(port_id, &attr, pattern, action, error);
-        } else {printf("\n\nerror flow creation!!\n\n");  }
-
-
-	return flow;
-}
-
-//rte_flow_testing end
-
-
 static uint64_t get_time_nanosec_hwtsp(int port)
 {
 
@@ -1155,27 +1061,6 @@ printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
 
 	check_all_ports_link_status(l2fwd_enabled_port_mask);
 
-//yockgen: rte_flow testing
-
-#define SRC_IP ((0<<24) + (0<<16) + (0<<8) + 0) /* src ip = 0.0.0.0 */
-#define DEST_IP ((10<<24) + (158<<16) + (78<<8) + 178) /* dest ip = 10.158.78.178 */
-#define FULL_MASK 0xffffffff /* full mask */
-#define EMPTY_MASK 0x0 /* empty mask */
-
-        struct rte_flow_error error;
-
-	flow = set_pkt_flow(0, 0,SRC_IP, EMPTY_MASK, DEST_IP, FULL_MASK, &error);
-	if (!flow) {
-		printf("Flow can't be created %d message: %s\n",
-			error.type,
-			error.message ? error.message : "(no stated reason)");
-		//rte_exit(EXIT_FAILURE, "error in creating flow\n");
-	}
-
-//yockgen:end
-
-
-
 	ret = 0;
 	/* launch per-lcore init on every lcore */
 	rte_eal_mp_remote_launch(l2fwd_launch_one_lcore, NULL, CALL_MAIN);
@@ -1210,14 +1095,13 @@ printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
                            eth_stats.imissed,
                            eth_stats.ierrors);
 
-		printf("\nClosing port %d...", portid);
+		printf("\n\nClosing port %d...", portid);
 		ret = rte_eth_dev_stop(portid);
 		if (ret != 0)
 			printf("rte_eth_dev_stop: err=%d, port=%d\n",
 			       ret, portid);
 		rte_eth_dev_close(portid);
 	}
-        printf("\nTotal RX = %d\n",iCnt);
-
+        
 	return ret;
 }
