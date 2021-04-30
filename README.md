@@ -1,9 +1,3 @@
-HARDWARE/VM PLATFORM
-=====================
-VM:VirtualBox OS: UBUNTU 20.04  
-NIC: 4 (1 Primary Bridge Mode, 3 INTERNAL - for dpdk prototype)  
-Ethernet controller: Intel Corporation 82540EM Gigabit Ethernet Controller (rev 02)  - all 4 
-
 INSTALL DPDK
 ====================
 https://core.dpdk.org/doc/quick-start/
@@ -20,23 +14,6 @@ mkdir -p /dev/hugepages
 mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages  
 echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages  
 
-
-Bring Down NIC for DPDK prototype
----------------------------------
-/home/yockgenm/dpdk# ifconfig enp0s8 down  
-/home/yockgenm/dpdk# ifconfig enp0s9 down  
-
-Enable unsafe iommu mode (need study why such)
----------------------------------------------
-echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode  
-
-Bind Down NICs to DPDK compatible driver
--------------------------------------------
-/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -b vfio-pci 0000:00:08.0  
-/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -b vfio-pci 0000:00:09.0  
-
-To confirm:
-/home/yockgenm/dpdk# python3 /home/yockgen/dpdk/usertools/dpdk-devbind.py -s  
 
 PTP CLOCK SYNC IN BOTH TALKER AND LISTENER MACHINES 
 ====================================================  
