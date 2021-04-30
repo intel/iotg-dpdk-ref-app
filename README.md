@@ -67,7 +67,7 @@ An executable program listen to all L2 (MAC/Ethernet level) broadcasting data fr
 compile:  
 make static  
 
-Route Packet to queue 3 in listener
+Route Packet to queue 3 
 ----------------------------------
 If you're using PTP to sync clock between talker and listener mentioned in above section, please route the listener packet RX (receiving/ingress) to queue 3 as below:  
 
@@ -78,7 +78,7 @@ Validate result
 ---------------  
 ethtool --show-ntuple enp169s0   
 
-Running queue=3    
+Run on queue=3    
 -----------------------------  
 sudo /data/yockgenm/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=3 -- -p 0x1 -D 1  
 
@@ -103,7 +103,8 @@ An executable program receiving L2 (MAC/Ethernet level) data frame
 compile:  
 make static  
 
-run:  
+Run  
+====
 sudo ./dpdk-demo01/talker/build/talker -l 1 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=1  -- -p 0x1 -T 300 -d  00:A0:C9:00:00:02 -D 0 -c 150000 
 
 -T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default, 5000000 max)   
