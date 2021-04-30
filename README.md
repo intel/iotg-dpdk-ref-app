@@ -82,6 +82,7 @@ Run on queue=3
 -----------------------------  
 sudo /data/yockgenm/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=3 -- -p 0x1 -D 1  
 
+Options  
 -p PORTMASK: hexadecimal bitmask of ports to configure  
 -q NQ: number of queue (=ports) per lcore (default is 1)  
 -f LATENCY OUTPUT FILENAME: length should be less than 30 characters, preferably with .csv extension. Default is 'default_listenerOPfile.csv' if option not provided  
@@ -91,9 +92,6 @@ sudo /data/yockgenm/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_a
        - The source MAC address is replaced by the TX port MAC address  
        - The destination MAC address is replaced by 02:00:00:00:00:TX_PORT_ID  
 --portmap: Configure forwarding port pair mapping  
-              Default: alternate port pairs  
-
-
 
 
 RUN Talker 
@@ -119,5 +117,3 @@ Options
        - The source MAC address is replaced by the TX port MAC address  
        - The destination MAC address is replaced by 02:00:00:00:00:TX_PORT_ID  
   --portmap: Configure forwarding port pair mapping  
-              Default: alternate port pairs  
-
