@@ -62,7 +62,12 @@ ethtool --show-ntuple enp169s0
 
 Run on queue=3    
 -----------------------------  
+AF_XDP  
 **sudo /data/yockgenm/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=3 -- -p 0x1 -D 1**    
+
+AF_PACKET  
+**sudo /data/yockgenm/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_packet0,iface=enp169s0,start_queue=3 -- -p 0x1 -D 1**    
+
 
 Options  
 -p PORTMASK: hexadecimal bitmask of ports to configure  
