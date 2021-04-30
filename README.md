@@ -23,7 +23,7 @@ echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepage
 PTP CLOCK SYNC IN BOTH TALKER AND LISTENER MACHINES 
 ====================================================  
 Run following in TALKER machine and follow by LISTENER machine:  
-sudo /ptp/time_sync.sh i225 
+**sudo /ptp/time_sync.sh i225**   
 
 Validate following in listener machine 
 --------------------------------------- 
