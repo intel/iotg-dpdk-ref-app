@@ -23,7 +23,7 @@ echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepage
 PTP CLOCK SYNC IN BOTH TALKER AND LISTENER MACHINES 
 ====================================================  
 Run following in TALKER machine and follow by LISTENER machine:  
-**sudo /ptp/time_sync.sh i225**   
+sudo /ptp/time_sync.sh i225     
 
 Validate following in listener machine 
 --------------------------------------- 
@@ -62,7 +62,7 @@ ethtool --show-ntuple enp169s0
 
 Run on queue=3    
 -----------------------------  
-sudo /data/yockgenm/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=3 -- -p 0x1 -D 1  
+**sudo /data/yockgenm/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=3 -- -p 0x1 -D 1**    
 
 Options  
 -p PORTMASK: hexadecimal bitmask of ports to configure  
@@ -85,7 +85,7 @@ make static
 
 Run  
 ====
-sudo ./dpdk-demo01/talker/build/talker -l 1 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=1  -- -p 0x1 -T 300 -d  00:A0:C9:00:00:02 -D 0 -c 150000 
+**sudo ./dpdk-demo01/talker/build/talker -l 1 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=1  -- -p 0x1 -T 300 -d  00:A0:C9:00:00:02 -D 0 -c 150000**   
 
 Options  
   -p PORTMASK: hexadecimal bitmask of ports to configure  
