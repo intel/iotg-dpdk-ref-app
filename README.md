@@ -89,15 +89,16 @@ sudo /home/yockgen/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af
 
 RUN Talker 
 ==========
-An executable program sending L2 (MAC/Ethernet level) data frame
+An executable program receiving L2 (MAC/Ethernet level) data frame
 
 compile:  
 make static  
 
 run:  
-sudo /home/yockgen/dpdk/examples/talker/build/talker -l 1 -n 1 -a 0000:00:09.0 -d librte_net_virtio.so -d librte_mempool_ring.so -- -p 0x1 -T 1 -d 08:00:27:cf:69:3e  -D 1
+sudo ./dpdk-demo01/talker/build/talker -l 1 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=1  -- -p 0x1 -T 300 -d  00:A0:C9:00:00:02 -D 0 -c 150000 
 
-If you want to run using bifurcated level PMD like AF_PACKET, AF_XDP (mean still through Linux kernel and share NIC with other non-DPDK app), please do not bring down the interface (ifconfig xxx down) and ignore the dpdk-devbind.py steps, run following:  
-
-sudo /home/yockgen/dpdk-demo01/l2fwd/build/talker -l 1 -n 1 --vdev=net_af_xdp1,iface=enp0s9 -- -p 0x1 -T 1 -d 08:00:27:cf:69:3e  
+-T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default, 5000000 max) 
+-d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e 
+-D [1,0] (1 to enable, 0 default disable) 
+-c Total packet to be send to destination (100000 by default, must not >1500000) 
 
