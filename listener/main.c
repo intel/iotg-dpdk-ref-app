@@ -18,6 +18,7 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <float.h>
+#include <math.h>
 
 #include <rte_common.h>
 #include <rte_log.h>
@@ -117,6 +118,7 @@ static uint64_t timer_period = 10; /* default period is 10 seconds */
 struct latency_stats {
 	int  median;
 	int  avg;
+        double stddev;
 } ltc_stats;
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
@@ -437,10 +439,26 @@ l2fwd_main_loop(void)
                }
                if (sum>=FLT_MAX) break; 
             }
-            ltc_stats.avg = sum/iActualCnt*1000;  
+            ltc_stats.avg = sum/iActualCnt*1000;
+
+            //standard deviation 
+            long stdsum  = 0, variance=0;
+            int  iTmp=0;
+            double stddev = 0;
+            iActualCnt = 0; 
+            for (int i=0;i<iCnt;i++){
+               if (a_latency[i]>=0 && stdsum <= LLONG_MAX){
+                 iTmp =  (a_latency[i]/1000); //normalized the latency to avoid big number overflow 
+                 stdsum += pow(iTmp,1);
+                 iActualCnt++;
+               }
+               if (stdsum>=LLONG_MAX) break;
+            }
+            variance = stdsum / iActualCnt;
+            if (variance >0)stddev = sqrt(variance) * 1000;
+            ltc_stats.stddev = stddev;
 
         }
-
 
 }
 
@@ -1147,10 +1165,12 @@ printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
 	}
 
         printf("\nSummary Statistics\n------------------------------\n"
-	       "Median of %d packets latency in microseconds (us):%d\n"
-	       "Average of %d packets latency in microseconds (us):%d\n\n",
-		iCnt,ltc_stats.median
-		,iCnt,ltc_stats.avg);
+	       "Median of %d packets latency in nanoseconds (ns):%d\n"
+	       "Average of %d packets latency in nanoseconds (ns):%d\n"
+	       "Standard deviation of %d packets latency in nanoseconds (us):%lf\n\n",
+		 iCnt,ltc_stats.median
+		,iCnt,ltc_stats.avg
+		,iCnt,ltc_stats.stddev);
 
 
 	return ret;
