@@ -158,7 +158,7 @@ static uint64_t get_time_nanosec_hwtsp(int port)
 static int iCnt = 0; 
 static int pCnt = 0;
 static int a_latency[MX_PKT_RCV]; 
-static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl, FILE *fp)
+static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl, FILE *fp)
 {
 
 
@@ -171,11 +171,7 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
        struct rte_ether_addr src01 =  eth_hdr->s_addr;
        struct rte_ether_addr dst01 =  eth_hdr->d_addr;
 
-
-       if (unlikely(eth_hdr->ether_type != TALKER_PACKET_ETH_TYPE)) {
-            //return;
-       }
-
+       //ignore packet content processing not to local machine
        if (l2fwd_ports_eth_addr[0].addr_bytes[0] != dst01.addr_bytes[0] ||
            l2fwd_ports_eth_addr[0].addr_bytes[1] != dst01.addr_bytes[1] ||
            l2fwd_ports_eth_addr[0].addr_bytes[2] != dst01.addr_bytes[2] ||
@@ -183,7 +179,7 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
            l2fwd_ports_eth_addr[0].addr_bytes[4] != dst01.addr_bytes[4] ||
            l2fwd_ports_eth_addr[0].addr_bytes[5] != dst01.addr_bytes[5]
           ){
-            return;
+            return 0;
  
        }
 
@@ -282,6 +278,8 @@ static void extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
               printf("\rPacket received: %d",iCnt);
         }
 
+        return 1;
+
 }
 
 
@@ -317,21 +315,30 @@ l2fwd_mac_updating(struct rte_mbuf *m, unsigned dest_portid)
 	rte_ether_addr_copy(&l2fwd_ports_eth_addr[dest_portid], &eth->s_addr);
 }
 
-static void
-l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
+static int
+l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid, unsigned to_local)
 {
 	unsigned dst_port;
 	int sent;
 	struct rte_eth_dev_tx_buffer *buffer;
 
 
+	if (to_local >0){
+   	    rte_pktmbuf_free(m);
+            return 0;
+        }
+
 	dst_port = l2fwd_dst_ports[portid];
- 
-	if (mac_updating)
-		l2fwd_mac_updating(m, dst_port);
+
+        if (mac_updating){
+	    l2fwd_mac_updating(m, dst_port);
+        }
 
 	buffer = tx_buffer[dst_port];
-	sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
+ 
+        sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
+
+        return sent;
 }
 
 int sort_compare (const void * a, const void * b)
@@ -355,7 +362,7 @@ l2fwd_main_loop(void)
 	struct rte_eth_dev_tx_buffer *buffer;
 
 	FILE *fp;
-	fp = fopen(output_file, "a+");
+	fp = fopen(output_file, "w");
 
 	prev_tsc = 0;
 	timer_tsc = 0;
@@ -377,27 +384,27 @@ l2fwd_main_loop(void)
 			portid);
 
 	}
-
+ 
+        int i_clean = 0; 
 	while (!force_quit) {
 
                 fflush(stdout);
-		cur_tsc = rte_rdtsc();
 
+		//cur_tsc = rte_rdtsc();
 		/*
 		 * TX burst queue drain
 		 */
-		diff_tsc = cur_tsc - prev_tsc;
+		/*diff_tsc = cur_tsc - prev_tsc;
 		if (unlikely(diff_tsc > drain_tsc)) {
 
 			for (i = 0; i < qconf->n_rx_port; i++) {
 
 				portid = l2fwd_dst_ports[qconf->rx_port_list[i]];
 				buffer = tx_buffer[portid];
-
 				sent = rte_eth_tx_buffer_flush(portid, 0, buffer);
 			}
 		        prev_tsc = cur_tsc;
-		}
+		}*/
 
 		/*
 		 * Read packet from RX queues
@@ -407,21 +414,21 @@ l2fwd_main_loop(void)
 
 			portid = qconf->rx_port_list[i];
 			nb_rx = rte_eth_rx_burst(portid, 0,
-						 pkts_burst, MAX_PKT_BURST);
+						 pkts_burst,MAX_PKT_BURST);
 
-                        int datalen = 0; 
+                        int datalen = 0,nb_tx=0,to_local=0;
+
 			for (j = 0; j < nb_rx; j++) {
 
-				m = pkts_burst[j]; 
+				m = pkts_burst[j];
                                 datalen = rte_pktmbuf_pkt_len(m);
-                                extract_l2packet(m,j+1,nb_rx,fp);
-
-                                l2fwd_simple_forward(m, portid);
-
-
+                                to_local = extract_l2packet(m,j+1,nb_rx,fp);
+			        nb_tx  = l2fwd_simple_forward(m, portid,to_local);
 			}
 
+
 		}
+
 	}
 
         fclose(fp);
@@ -1024,8 +1031,8 @@ main(int argc, char **argv)
 				  ret, portid);
 
 
-printf("\ndriver=%s",dev_info.driver_name);
-printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
+                 printf("\ndriver=%s",dev_info.driver_name);
+                printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
 
 //yockgen:end
 
@@ -1095,8 +1102,7 @@ printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
 			rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
 				  ret, portid);
 
-		printf("done: \n");
-
+		
 		ret = rte_eth_promiscuous_enable(portid);
 		if (ret != 0)
 			rte_exit(EXIT_FAILURE,
@@ -1165,9 +1171,9 @@ printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
 	}
 
         printf("\nSummary Statistics\n------------------------------\n"
-	       "Median of %d packets latency in nanoseconds (ns):%d\n"
+	       "Median of %d packets latency in nanoseconds  (ns):%d\n"
 	       "Average of %d packets latency in nanoseconds (ns):%d\n"
-	       "Standard deviation of %d packets latency in nanoseconds (us):%lf\n\n",
+	       "Standard deviation of %d packets latency in nanoseconds (ns):%lf\n\n",
 		 iCnt,ltc_stats.median
 		,iCnt,ltc_stats.avg
 		,iCnt,ltc_stats.stddev);
