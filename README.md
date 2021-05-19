@@ -62,7 +62,6 @@ ethtool --show-ntuple enp169s0
 
 Run on queue=3    
 -----------------------------  
-AF_XDP  
 **sudo /data/yockgenm/dpdk-demo01/listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=3 -- -p 0x1 -D 1**    
 
 
@@ -87,7 +86,7 @@ make static
 
 Run  
 ====
-**sudo ./dpdk-demo01/talker/build/talker -l 1 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=1  -- -p 0x1 -T 300 -d  00:A0:C9:00:00:02 -D 0 -c 150000**   
+**sudo ./dpdk-demo01/talker/build/talker -l 1 -n 1 --vdev=net_af_xdp0,iface=enp169s0,start_queue=1  -- -p 0x1 -T 300 -d  00:A0:C9:00:00:02 -D 1 -c 150000**   
 
 Options  
   -p PORTMASK: hexadecimal bitmask of ports to configure  
