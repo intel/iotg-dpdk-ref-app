@@ -111,6 +111,10 @@ static uint64_t pkt_interval = 500; /* default period is 500us */
 
 #define NSEC_PER_SEC 1000000000L
 
+
+/*message size*/
+#define TIME_STAMP_MSG_SIZE 50
+
 /*Destination mac address*/
 static uint8_t dst_mac_addr[6] = {0x00,0x00,0x00,0x00,0x00,0x00};
 
@@ -123,7 +127,7 @@ static void debug0(const char* format,...){
 
   if (is_debug==0) return;
 
-  char buffer[1000];
+  char buffer[5000];
   va_list args;
   va_start (args, format);
   vsnprintf (buffer, 999, format, args);
@@ -156,14 +160,14 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 	int sent;
 	struct rte_eth_dev_tx_buffer *buffer;
 
-
 	dst_port = l2fwd_dst_ports[portid];
 
 	if (mac_updating)
 		l2fwd_mac_updating(m, dst_port);
 
 	buffer = tx_buffer[dst_port];
-	sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
+        sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
+	//sent = rte_eth_tx_burst(dst_port, 0, m,1);
 
 }
 
@@ -187,7 +191,6 @@ static uint64_t get_time_nanosec_hwtsp(int port)
 static int idx = 0;
 static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 {
-#define TIME_STAMP_MSG_SIZE 36  
 #define VLAN_ID 3
 
 
@@ -200,14 +203,14 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 
 
         uint64_t tx_tsp  = get_time_nanosec(CLOCK_REALTIME); 
-        //uint64_t tx_tsp  = get_time_nanosec_hwtsp(0); //hardware timestamp
+ 
 
         debug0("\nclock_gettime %"PRIu64
                ",idx %d", tx_tsp,++idx);
 
         char b_tstamp[TIME_STAMP_MSG_SIZE]; 
 
-        char b_idx[7];
+        char b_idx[10];
         int i_tmp = sprintf(b_idx,"%d",idx);
         i_tmp  = sprintf(b_tstamp,"%"PRIu64
                                       ",%d",tx_tsp,idx);
@@ -222,8 +225,7 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 	struct rte_ether_addr s_addr = {{0x14,0x02,0xEC,0x89,0x8D,0x24}};
 	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
 
-	//uint16_t ether_type  = htons(0x0a00);//129;//rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);//0x0800;//0x0a00;
-        uint16_t ether_type = 0xb62c;//htons(0xb62c);
+	uint16_t ether_type = 0xb62c;//htons(0xb62c);
         debug0("\nether_type=%"PRIu64,ether_type);
 
         int BURST_SIZE = pkt_size;
@@ -269,7 +271,6 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 
 	}
 
-
        debug0("\nSending Packet (Timestamp:%s) SRC:%02X:%02X:%02X:%02X:%02X:%02X DST:%02X:%02X:%02X:%02X:%02X:%02X\n",
                                 msg->data, 
                                 eth_hdr->s_addr.addr_bytes[0],
@@ -302,12 +303,11 @@ static uint64_t get_time_sec(clockid_t clkid)
 
 /* main processing loop */
 
-static int iCnt =0;
+
 static void talker_main_loop(void)
 {
 
-#define TIME_STAMP_MSG_SIZE 36
-
+         static long iCnt =0;
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
 	struct rte_mbuf *m;
 	int sent, pkt_interval_us=0;
@@ -342,53 +342,41 @@ static void talker_main_loop(void)
 
         int icounter = 0;
         sleep(1);
+        printf ("\nTotal Packets going  to send is %d\n",ttl_pkt_cnt);
 
-//debug
-uint64_t tx_timestamp;
-tx_timestamp = get_time_sec(CLOCK_REALTIME);    //0.5s ahead (stmmac limitation)
-tx_timestamp += 100000;//opt->offset_ns;
-tx_timestamp += 2 * NSEC_PER_SEC;
+    	while (!force_quit) {
 
-	while (!force_quit) {
+	         fflush(stdout);
+        	 pkt_interval_us = pkt_interval;
+	         usleep(pkt_interval_us); 
 
-//tx_timestamp += 2000000;//opt->interval_ns;
-//debug
+        	//sending operation stop after hit target number
+	        if (icounter++ >= ttl_pkt_cnt){
+        	     force_quit = true;
+	             sleep(5); 
+	        }
 
-         //struct timespec ts;
-         //uint64_t sleep_timestamp;
-         //sleep_timestamp = tx_timestamp;
- 	 //ts.tv_sec = sleep_timestamp / NSEC_PER_SEC;
-	 //ts.tv_nsec = sleep_timestamp % NSEC_PER_SEC;
-	 //clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts, NULL);
-         // fprintf(stdout, "\nsleep time:tv_sec=%ld tv_nsec=%ld",ts.tv_sec,ts.tv_nsec);
-         pkt_interval_us = pkt_interval;
-         usleep(pkt_interval_us); 
-         //cur_tsc = rte_rdtsc();
-//debug
-        if (icounter++ > ttl_pkt_cnt){
-             force_quit = true;
-             sleep(5); 
-        }
+      		int BURST_SIZE = 1; 
+	        struct rte_mbuf *pkt[BURST_SIZE];
 
-        int BURST_SIZE = 1; 
-        struct rte_mbuf *pkt[BURST_SIZE];
-        int ret01 = construct_packet(pkt, BURST_SIZE);
-        uint16_t nb_tx = rte_eth_tx_burst(0,0,pkt,BURST_SIZE);
+	        int ret01 = construct_packet(pkt, BURST_SIZE);
 
-        for (i = 0; i < qconf->n_rx_port; i++) {
-				portid = l2fwd_dst_ports[qconf->rx_port_list[i]];
-				buffer = tx_buffer[portid];
+                unsigned dst_port = l2fwd_dst_ports[0];
+	        uint16_t nb_tx = rte_eth_tx_burst(dst_port,0,pkt,BURST_SIZE);
 
-				sent = rte_eth_tx_buffer_flush(portid, 0, buffer);
-		rte_pktmbuf_free(pkt[i]);
+                for (i = nb_tx; i < qconf->n_rx_port; i++) {
+			portid = l2fwd_dst_ports[qconf->rx_port_list[i]];
+			buffer = tx_buffer[portid];
+                        rte_pktmbuf_free(pkt[i]);
+		}
+
+
+        	if (is_debug==0){
+	              printf("\r                ");
+                      printf("\rPacket sent: %ld",++iCnt);
+	        }
+
 	}
-
-        if (is_debug==0){
-              printf("\r                ");
-              printf("\rPacket sent: %d",++iCnt);
-        }
-
-   }
 
 }
 
@@ -574,8 +562,12 @@ l2fwd_parse_ttl_pkt(const char *q_arg)
 	n = strtol(q_arg, &end, 10);
 	if ((q_arg[0] == '\0') || (end == NULL) || (*end != '\0'))
 		return -1;
-	if (n >= 1500000)
+
+	if (n > INT_MAX || n == 0){
+                ttl_pkt_cnt = INT_MAX-10;
 		return -1;
+        }
+
 
         ttl_pkt_cnt = n;
 	return n;
