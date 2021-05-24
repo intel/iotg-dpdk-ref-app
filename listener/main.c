@@ -157,10 +157,10 @@ static uint64_t get_time_nanosec_hwtsp(int port)
 #define MX_PKT_RCV 2000000
 static int iCnt = 0; 
 static int pCnt = 0;
-static int a_latency[MX_PKT_RCV]; 
+static uint64_t  a_latency[MX_PKT_RCV]; 
+
 static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl, FILE *fp)
 {
-
 
 #define TALKER_PACKET_ETH_TYPE 2048
 
@@ -237,9 +237,7 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
         }*/
 
 
-
 	uint64_t now_tsp  = get_time_nanosec(CLOCK_REALTIME);
-        //uint64_t now_tsp  =  get_time_nanosec_hwtsp(0);
 
         uint64_t tx_tsp;
         sscanf(b_tx_tsp, "%"PRIu64, &tx_tsp);
@@ -254,19 +252,18 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
         pCnt++;
         fprintf(fp,",%d\n", pCnt);
 
-        //for (j=24; j <34; j++){
-        for (j=0; j <100; j++){
-           if (isdigit(msg[j]))
-              debug0("%c",msg[j]);
+        for (j=24; j <100; j++)
+        {
+            if (isdigit(msg[j]))
+                debug0("%c",msg[j]);
+
         }
 
         debug0("\n");
 
-        if (delta_val>=0 && delta_val<= INT_MAX) //sanity check
-        {
-          a_latency[iCnt] = (int)delta_val;
 
-        }
+        if (delta_val>=0 && delta_val< INT_MAX) //sanity check 
+             a_latency[iCnt] = delta_val; 
         else
           a_latency[iCnt] = -1; //error
 
@@ -274,8 +271,8 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
         iCnt++;
 
         if (is_debug==0){
-              printf("\r                ");
-              printf("\rPacket received: %d",iCnt);
+             printf("\r                ");
+             printf("\rPacket received: %d",iCnt);
         }
 
         return 1;
@@ -434,26 +431,34 @@ l2fwd_main_loop(void)
         fclose(fp);
 
         if (iCnt>2){
-            qsort (a_latency, iCnt, sizeof(int), sort_compare);
-            ltc_stats.median = a_latency[iCnt/2];
+ 
+            uint64_t sum=0,avg=0;
+            int iActualCnt=0, iStartCnt=0;
 
-            float sum=0.0,avg = 0.0;
-            int iActualCnt=0;
-            for (int i=0;i<iCnt;i++){
-               if (a_latency[i]>=0 && sum <= FLT_MAX){
+            //ignore first 10 percent data as yet stablized  
+            if(iCnt>100){
+               iStartCnt = iCnt * 0.1;
+            }
+            for (int i=iStartCnt;i<iCnt;i++){
+               if (a_latency[i]>=0 && sum < FLT_MAX){
                  sum += (a_latency[i]/1000); //normalized the latency to avoid big number overflow
                  iActualCnt++;
                }
-               if (sum>=FLT_MAX) break; 
+
+               if (sum>FLT_MAX-1){
+                         break;
+               } 
             }
+
             ltc_stats.avg = sum/iActualCnt*1000;
+
 
             //standard deviation 
             long stdsum  = 0, variance=0;
             int  iTmp=0;
             double stddev = 0;
             iActualCnt = 0; 
-            for (int i=0;i<iCnt;i++){
+            for (int i=iStartCnt;i<iCnt;i++){
                if (a_latency[i]>=0 && stdsum <= LLONG_MAX){
                  iTmp =  (a_latency[i]/1000); //normalized the latency to avoid big number overflow 
                  stdsum += pow(iTmp,1);
@@ -464,6 +469,11 @@ l2fwd_main_loop(void)
             variance = stdsum / iActualCnt;
             if (variance >0)stddev = sqrt(variance) * 1000;
             ltc_stats.stddev = stddev;
+
+            //get median, this need to at last step else the order of data will be sorted to value
+            qsort (a_latency, iCnt, sizeof(uint64_t), sort_compare);
+            ltc_stats.median = a_latency[iCnt/2];
+
 
         }
 
@@ -839,7 +849,6 @@ check_all_ports_link_status(uint32_t port_mask)
 		/* set the print_flag if all ports up or timeout */
 		if (all_ports_up == 1 || count == (MAX_CHECK_TIME - 1)) {
 			print_flag = 1;
-			printf("done\n");
 		}
 	}
 }
@@ -1006,35 +1015,18 @@ main(int argc, char **argv)
 				"Error during getting device (port %u) info: %s\n",
 				portid, strerror(-ret));
 
-
-//yockgen test: start
-
-                if (!(dev_info.rx_offload_capa & DEV_RX_OFFLOAD_TIMESTAMP)) {
-			printf("\nERROR: Port %u does not support hardware timestamping\n", portid);
-		}
-
-                /*int hwts_dynfield_offset = -1;
-                local_port_conf.rxmode.offloads |= DEV_RX_OFFLOAD_TIMESTAMP;
-		rte_mbuf_dyn_rx_timestamp_register(&hwts_dynfield_offset, NULL);
-                printf("\nhwts_dynfield=%d\n",hwts_dynfield_offset);
-		if (hwts_dynfield_offset < 0) {
-			printf("\nERROR: Failed to register timestamp field\n");
-			//return -rte_errno;
-		}*/
-
                 if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MBUF_FAST_FREE)
 			local_port_conf.txmode.offloads |= DEV_TX_OFFLOAD_MBUF_FAST_FREE;
+
+                printf("\nDriver=%s",dev_info.driver_name);
+                printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
+                printf("\nmax_tx_queues=%d\n",dev_info.max_tx_queues);
 
 		ret = rte_eth_dev_configure(portid, 1, 1, &local_port_conf);
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
 				  ret, portid);
 
-
-                 printf("\ndriver=%s",dev_info.driver_name);
-                printf("\nmax_rx_queues=%d",dev_info.max_rx_queues);
-
-//yockgen:end
 
 		ret = rte_eth_dev_adjust_nb_rx_tx_desc(portid, &nb_rxd,
 						       &nb_txd);
@@ -1169,6 +1161,7 @@ main(int argc, char **argv)
 			       ret, portid);
 		rte_eth_dev_close(portid);
 	}
+         
 
         printf("\nSummary Statistics\n------------------------------\n"
 	       "Median of %d packets latency in nanoseconds  (ns):%d\n"
