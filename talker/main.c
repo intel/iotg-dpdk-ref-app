@@ -364,11 +364,8 @@ static void talker_main_loop(void)
                 unsigned dst_port = l2fwd_dst_ports[0];
 	        uint16_t nb_tx = rte_eth_tx_burst(dst_port,0,pkt,BURST_SIZE);
 
-                for (i = nb_tx; i < qconf->n_rx_port; i++) {
-			portid = l2fwd_dst_ports[qconf->rx_port_list[i]];
-			buffer = tx_buffer[portid];
-                        rte_pktmbuf_free(pkt[i]);
-		}
+                for(j=nb_tx;j<BURST_SIZE;j++)
+                      rte_pktmbuf_free(pkt[j]);
 
 
         	if (is_debug==0){
