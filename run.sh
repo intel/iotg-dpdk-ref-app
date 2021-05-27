@@ -8,7 +8,7 @@ LCOREQ=1
 OUTPUTFILE="default_listenerOPfile.csv"
 DEBUG=0
 TIME_PERIOD=300
-DEST_MACADDR="00:A0:C9:00:00:02"
+DEST_MACADDR="22:bb:22:bb:22:bb"
 SEND_PKTCNT=100000
 
 green=$(tput setaf 2)
