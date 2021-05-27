@@ -5,7 +5,7 @@ INTERFACE=$1
 pkill ptp4l
 pkill phc2sys
 
-gPTP_CONF="i225_config/gPTP_i225-1G.cfg"
+gPTP_CONF="ptp/gPTP_i225-1G.cfg"
 
 if [[ -z $gPTP_CONF ]]; then
         echo "gPTP configuration file for I225 is missing"
