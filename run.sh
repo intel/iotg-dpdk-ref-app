@@ -70,7 +70,7 @@ main() {
                 "This application works irrespective of platforms and depends on NIC \n" \
                 "Please report if you see any issues with other platforms";
     else
-        echo -e "Run.sh invaliid <PLAT>:"
+        echo -e "Run.sh invalid <PLAT>:"
         exit 1
     fi
 
@@ -78,12 +78,6 @@ main() {
     ip a show $IFACE up > /dev/null
     if [ $? -eq 1 ]; then echo "Error: Invalid interface $IFACE"; exit 1; fi
 
-    # Only for debug: timesync per-run logging
-    #if [[ "$RUNSH_DEBUG_MODE" == "YES" && "$ACTION" == "run" ]]; then
-       # ts_log_start
-    #fi
-
-    # Execute: redirect to opcua if opcua config, otherwise execute shell scripts
     if [ "$ACTION" = "setup" -o "$ACTION" = "init" ]; then
         ethtool -T  $IFACE | grep "PTP Hardware Clock: 0"
         if [ $? -eq 1 ];
@@ -99,22 +93,24 @@ main() {
             mountpoint -q $MOUNT_DIR || mount -t hugetlbfs nodev $MOUNT_DIR
             echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
             ethtool -K $IFACE ntuple on
-            if [ "$APP_COMPONENT" = "listener" ]
-            then
-                echo "Executing setup-vs1b.sh script"
-                ./setup/setup-vs1b.sh $IFACE
+
+            if [ "$APP_COMPONENT" = "listener" ]; then
 		echo "Compiling Listener app"
-                cd listener
-                make static
-                cd ..
-            else
-                echo "Executing setup-vs1a.sh script"
-                ./setup/setup-vs1a.sh $IFACE
+                make -C listener clean
+                make -C listener static
+
+            elif [ "$APP_COMPONENT" = "talker" ]; then
 		echo "Compiling Talker app"
-                cd talker
-                make static
-                cd ..
+                make -C talker clean
+                make -C talker static
+
+            else
+                echo "Error: Invalid argument $APP_COMPONENT"
+                exit 1
             fi
+
+            echo "Configure network interface $IFACE as $APP_COMPONENT"
+            ./setup/setup.sh $IFACE $APP_COMPONENT $PLAT
         fi
 
     elif [ "$ACTION" = "run" ]; then
