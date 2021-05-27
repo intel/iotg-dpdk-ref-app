@@ -9,7 +9,7 @@ OUTPUTFILE="default_listenerOPfile.csv"
 DEBUG=0
 TIME_PERIOD=300
 DEST_MACADDR="00:A0:C9:00:00:02"
-SEND_PKTCNT=150000
+SEND_PKTCNT=100000
 
 green=$(tput setaf 2)
 normal=$(tput sgr0)
@@ -91,26 +91,25 @@ main() {
             echo "NIC does not support PTP feature, so ptp time_sync is not executed and we will not get appropriate latency from the below listener app"
             exit 1
         else
-            if [ -d $MOUNT_DIR ]
+            if [ ! -d $MOUNT_DIR ]
             then
-                echo "Directory already exists"
-            else
                 mkdir $MOUNT_DIR
             fi
 	    echo "Mounting hugepages"
-            mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
+            mountpoint -q $MOUNT_DIR || mount -t hugetlbfs nodev $MOUNT_DIR
             echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+            ethtool -K $IFACE ntuple on
             if [ "$APP_COMPONENT" = "listener" ]
             then
                 echo "Executing setup-vs1b.sh script"
-                ./setup/setup-vs1b.sh
+                ./setup/setup-vs1b.sh $IFACE
 		echo "Compiling Listener app"
                 cd listener
                 make static
                 cd ..
             else
                 echo "Executing setup-vs1a.sh script"
-                ./setup/setup-vs1a.sh
+                ./setup/setup-vs1a.sh $IFACE
 		echo "Compiling Talker app"
                 cd talker
                 make static
@@ -119,8 +118,6 @@ main() {
         fi
 
     elif [ "$ACTION" = "run" ]; then
-        ethtool -K $IFACE ntuple on
-        ethtool -N $IFACE flow-type ether vlan 24576 vlan-mask 0x1FFF action 3
         if [ "$APP_COMPONENT" = "listener" ]; then
             while [ ! -z "$5" ]; do
                 case "$5" in
@@ -142,6 +139,7 @@ main() {
                         ;;
                     *)
                         show_usage
+			shift
                         exit 1;
                         ;;
                 esac
@@ -177,6 +175,7 @@ main() {
                         ;;
                     *)
                         show_usage
+			shift
                         exit 1;
                         ;;
                 esac
