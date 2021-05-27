@@ -1,11 +1,11 @@
 #!/bin/bash
 
 INTERFACE=$1
-
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 pkill ptp4l
 pkill phc2sys
 
-gPTP_CONF="ptp/gPTP_i225-1G.cfg"
+gPTP_CONF="$DIR/ptp/gPTP_i225-1G.cfg"
 
 if [[ -z $gPTP_CONF ]]; then
         echo "gPTP configuration file for I225 is missing"
