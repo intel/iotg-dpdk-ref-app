@@ -260,10 +260,27 @@ main()
         fi
 
         sleep 10
-        ./setup/clock-setup.sh $IFACE
+        c=1
+        while [ $c -lt 3 ]; do
+            ./setup/clock-setup.sh $IFACE
 
-        sleep 30 #Give some time for clock daemons to start.
+            sleep 30 #Give some time for clock daemons to start.
+            msg=`tail -n 1 /var/log/ptp4l.log | grep -E '(master|role)'`
+            if [[ ! -z $msg ]]; then
+                echo assume as master clock
+                break
+            fi
 
+            msg=`tail -n 1 /var/log/ptp4l.log | awk '{ print $3 }'`
+            if [ $msg -lt 100 ]; then
+                echo time is sync
+                break
+            else
+                echo time is NOT sync
+            fi
+            ((c++))
+        done
+        echo Done
 }
 
 main
