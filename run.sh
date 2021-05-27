@@ -14,7 +14,7 @@ SEND_PKTCNT=150000
 green=$(tput setaf 2)
 normal=$(tput sgr0)
 
-function show_usage (){
+show_usage (){
     printf "Usage: $0 [options [parameters]]\n"
     printf "\n"
     printf "Usage: ./run.sh <PLAT> <IFACE> [ACTION] [APP-COMPONENT] <Options>\n"
@@ -51,7 +51,7 @@ main() {
     #fi
 
     # Check for minimum inputs
-    if [[ "$1" == "--help" || $# -lt 3 ]]; then
+    if [ "$1" = "--help" -o $# -lt 3 ]; then
         show_usage
         exit 1
     fi
@@ -63,12 +63,12 @@ main() {
 
 
     # Check for <PLAT>
-    if [[ "$1" == "tgl" || "$1" == "i225" ]]; then
+    if [ "$1" = "tgl" -o "$1" = "i225" ]; then
         echo "Platform is $1"
-    elif [[ "$1" == "ehl" || "$1" == "tglh" || "$1" == "adl" || "$1" == "tglh2" || "$1" == "ehl2" || "$1" == "adl2" ]]; then
+    elif [ "$1" = "ehl" -o "$1" = "tglh" -o "$1" = "adl" -o "$1" = "tglh2" -o "$1" = "ehl2" -o "$1" = "adl2" ]; then
         echo -e "Warning: This application is verified on Tgl platform.\n" \
                 "This application works irrespective of platforms and depends on NIC \n" \
-                " Please report if you see any issues with other platforms";
+                "Please report if you see any issues with other platforms";
     else
         echo -e "Run.sh invaliid <PLAT>:"
         exit 1
@@ -84,39 +84,44 @@ main() {
     #fi
 
     # Execute: redirect to opcua if opcua config, otherwise execute shell scripts
-    if [[ "$ACTION" == "setup" || "$ACTION" == "init" ]]; then
+    if [ "$ACTION" = "setup" -o "$ACTION" = "init" ]; then
         ethtool -T  $IFACE | grep "PTP Hardware Clock: 0"
-        if [ $? -eq 1 ]
+        if [ $? -eq 1 ];
         then
             echo "NIC does not support PTP feature, so ptp time_sync is not executed and we will not get appropriate latency from the below listener app"
             exit 1
         else
-            if [[ -d $MOUNT_DIR ]]
+            if [ -d $MOUNT_DIR ]
             then
                 echo "Directory already exists"
             else
                 mkdir $MOUNT_DIR
             fi
+	    echo "Mounting hugepages"
             mountpoint -q /dev/hugepages || mount -t hugetlbfs nodev /dev/hugepages
             echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
-            if [$APP_COMPONENT == "listener"]
+            if [ "$APP_COMPONENT" = "listener" ]
             then
+                echo "Executing setup-vs1b.sh script"
                 ./setup/setup-vs1b.sh
+		echo "Compiling Listener app"
                 cd listener
                 make static
                 cd ..
             else
+                echo "Executing setup-vs1a.sh script"
                 ./setup/setup-vs1a.sh
+		echo "Compiling Talker app"
                 cd talker
                 make static
                 cd ..
             fi
         fi
 
-    elif [ "$ACTION" == "run" ]; then
+    elif [ "$ACTION" = "run" ]; then
         ethtool -K $IFACE ntuple on
         ethtool -N $IFACE flow-type ether vlan 24576 vlan-mask 0x1FFF action 3
-        if ["$APP_COMPONENT" == "listener"] then
+        if ["$APP_COMPONENT" = "listener"] then
             while [ ! -z "$5" ]; do
                 case "$5" in
                     --portmask|-p)
@@ -143,7 +148,7 @@ main() {
                 shift
             done
             ./listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=3 -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE -D $DEBUG
-        elif ["$APP_COMPONENT" == "talker"] then
+        elif ["$APP_COMPONENT" = "talker"] then
             while [ ! -z "$5" ]; do
                 case "$5" in
                     --portmask|-p)
