@@ -94,7 +94,7 @@ ip neigh flush all dev $IFACE
 #ip neigh flush all dev $IFACE.vlan
 
 # Turn off VLAN Stripping
-if ["$VLAN_STRIP_SUPPORT" = "YES" ]; then
+if [ "$VLAN_STRIP_SUPPORT" = "YES" ]; then
     echo "Turning off vlan stripping"
     ethtool -K $IFACE rxvlan off
 fi

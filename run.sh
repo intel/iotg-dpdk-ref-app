@@ -121,7 +121,7 @@ main() {
     elif [ "$ACTION" = "run" ]; then
         ethtool -K $IFACE ntuple on
         ethtool -N $IFACE flow-type ether vlan 24576 vlan-mask 0x1FFF action 3
-        if ["$APP_COMPONENT" = "listener"] then
+        if [ "$APP_COMPONENT" = "listener" ]; then
             while [ ! -z "$5" ]; do
                 case "$5" in
                     --portmask|-p)
@@ -148,7 +148,7 @@ main() {
                 shift
             done
             ./listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=3 -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE -D $DEBUG
-        elif ["$APP_COMPONENT" = "talker"] then
+        elif [ "$APP_COMPONENT" = "talker" ]; then
             while [ ! -z "$5" ]; do
                 case "$5" in
                     --portmask|-p)
