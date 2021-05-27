@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 IFACE="enp169s0"
 PLAT="i225"
@@ -18,7 +18,7 @@ RX_Q_COUNT=4
 VLAN_PRIORITY_SUPPORT="YES"
 VLAN_STRIP_SUPPORT="NO"
 EEE_TURNOFF="NO"
-IRQ_AFFINITY_FILE="irq_affinity_4c_4TxRx.map"
+IRQ_AFFINITY_FILE="setup/irq_affinity_4c_4TxRx.map"
 MQPRIO_MAP="0 1 2 3 0 0 0 0 0 0 0 0 0 0 0 0"
 PTP_IFACE_APPEND=".vlan"
 PTP_PHY_HW="i225-1G"
@@ -68,7 +68,7 @@ ip addr add $IFACE_IP_ADDR/24 brd $IFACE_BRC_ADDR dev $IFACE
 ip addr add $IFACE_VLAN_IP_ADDR/24 brd $IFACE_VLAN_BRC_ADDR dev $IFACE.vlan
 
 # Map socket priority N to VLAN priority N
-if [[ "$VLAN_PRIORITY_SUPPORT" == "YES" ]]; then
+if [ "$VLAN_PRIORITY_SUPPORT" = "YES" ]; then
     echo "Mapping socket priority N to VLAN priority N for $IFACE"
     ip link set $IFACE.vlan type vlan egress-qos-map 1:1
     ip link set $IFACE.vlan type vlan egress-qos-map 2:2
@@ -84,13 +84,13 @@ ip neigh flush all dev $IFACE
 ip neigh flush all dev $IFACE.vlan
 
 # Turn off VLAN Stripping
-if [[ "$VLAN_STRIP_SUPPORT" == "YES" ]]; then
+if [ "$VLAN_STRIP_SUPPORT" = "YES" ]; then
     echo "Turning off vlan stripping"
     ethtool -K $IFACE rxvlan off
 fi
 
 # Disable EEE option is set in config file
-if [[ "$EEE_TURNOFF" == "YES" ]]; then
+if [ "$EEE_TURNOFF" = "YES" ]; then
     echo "Turning off EEE"
     ethtool --set-eee $IFACE eee off &> /dev/null
 fi
@@ -117,7 +117,7 @@ done < $AFFINITY_FILE
 
 #setup_mqprio $IFACE
 #Count
-MQPRIO_ARR=($MQPRIO_MAP)
+MQPRIO_ARR=$MQPRIO_MAP
 NUM_TC=$(printf "%s\n" ${MQPRIO_ARR[@]} | sort | tail -n 1)
 
 for i in $(seq 0 $NUM_TC); do
@@ -134,17 +134,17 @@ echo "Run: $CMD"; $CMD;
 sleep 10
 
 RULES31=$(ethtool -n enp169s0 | grep "Filter: 31")
-if [[ ! -z $RULES31 ]]; then
+if [ ! -z "$RULES31" ]; then
     echo "Deleting filter rule 31"
     ethtool -N enp169s0 delete 31
 fi
 RULES30=$(ethtool -n enp169s0 | grep "Filter: 30")
-if [[ ! -z $RULES30 ]]; then
+if [ ! -z "$RULES30" ]; then
     echo "Deleting filter rule 30"
     ethtool -N enp169s0 delete 30
 fi
 RULES29=$(ethtool -n enp169s0 | grep "Filter: 29")
-if [[ ! -z $RULES30 ]]; then
+if [ ! -z "$RULES30" ]; then
     echo "Deleting filter rule 29"
     ethtool -N enp169s0 delete 29
 fi
@@ -168,7 +168,7 @@ ethtool -N $IFACE flow-type ether proto 0x0800 queue 0
 echo "Adding flow-type for iperf3 packet to q-0"
 sleep 10
 
-./clock-setup.sh $IFACE
+./setup/clock-setup.sh $IFACE
 sleep 30 #Give some time for clock daemons to start.
 
 exit 0
