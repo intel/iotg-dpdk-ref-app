@@ -1,5 +1,6 @@
 #!/bin/sh
 
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 MOUNT_DIR="/dev/hugepages"
 APP_COMPONENT=""
 
@@ -11,6 +12,8 @@ DEBUG=0
 TIME_PERIOD=300
 DEST_MACADDR="22:bb:22:bb:22:bb"
 SEND_PKTCNT=100000
+
+SETUP_DIR=$DIR/setup
 
 green=$(tput setaf 2)
 normal=$(tput sgr0)
@@ -44,6 +47,15 @@ show_usage (){
 return 0
 }
 
+# trap ctrl+c and call generate_plot()
+function generate_plot()
+{
+    if [ $APP_COMPONENT = "listener" ]; then
+         echo Generate plot
+         gnuplot -e "FILENAME='$OUTPUTFILE'" $SETUP_DIR/plot-latency.gnu -p
+    fi
+    echo Exit app
+}
 
 main() {
     # Check for minimum inputs
