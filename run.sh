@@ -18,27 +18,27 @@ normal=$(tput sgr0)
 show_usage (){
     printf "Usage: $0 [options [parameters]]\n"
     printf "\n"
-    printf "Usage: ./run.sh <PLAT> <IFACE> [ACTION] [APP-COMPONENT] <Options>\n"
+    printf "Usage: ./run.sh <PLAT> <IFACE> [ACTION] [APP-COMPONENT] <Options>\n\n"
     printf "Usage Example: ./run.sh tgl enp169s0 run listener -D 1\n"
     printf "<PLAT>: Example: tgl, i225 etc \n"
-    printf " <IFACE>: Example: enp169s0 \n"
-    printf "[ACTION]: setup,init or run \n"
+    printf "<IFACE>: Example: enp169s0 \n"
+    printf "[ACTION]: setup or run \n"
     printf "[APP-COMPONENT]: listener, talker\n"
     printf "<Options>: are specified below and vary for listener and talker applications\n"
     printf "\n"
     printf "${green}Listener Options:${normal}\n"
-    printf " -p|--portmask: hexadecimal bitmask of ports to configure\n"
-    printf " -q|--lcoreq: NQ: number of queue (=ports) per lcore (default is 1)\n"
-    printf " -f|--filename: LATENCY OUTPUT FILENAME: length should be less than 30 characters, preferably with .csv extension. Default is 'default_listenerOPfile.csv' if option not provided\n"
-    printf " -D|--debug: 1 to enable debug mode, 0 default disable debug mode\n"
+    printf " -p|--portmask: hexadecimal bitmask of ports to configure. Default is $PORTMASK\n"
+    printf " -q|--lcoreq: NQ: number of queue (=ports) per lcore (default is $LCOREQ)\n"
+    printf " -f|--filename: LATENCY OUTPUT FILENAME: length should be less than 30 characters, preferably with .csv extension. Default is '$OUTPUTFILE' if option not provided\n"
+    printf " -D|--debug: 1 to enable debug mode, $DEBUG default disable debug mode\n"
     printf " -h|--help, Print help\n"
     printf "${green}Talker Options:${normal}\n"
-    printf " -p|--portmask: hexadecimal bitmask of ports to configure\n"
-    printf " -q|--lcoreq: NQ: number of queue (=ports) per lcore (default is 1)\n"
-    printf " -D|--debug: 1 to enable debug mode, 0 default disable debug mode\n"
-    printf " -T|--tperiod: Packet will be transmit each PERIOD microseconds (must >=50us, 50us by default, 5000000 max)\n"
-    printf " -d|--destmac: Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e\n"
-    printf " -c|--pktcnt: Total packet to be send to destination (100000 by default, must not >1500000)\n"
+    printf " -p|--portmask: hexadecimal bitmask of ports to configure. Default is $PORTMASK\n"
+    printf " -q|--lcoreq: NQ: number of queue (=ports) per lcore (default is $LCOREQ)\n"
+    printf " -D|--debug: 1 to enable debug mode, $DEBUG default disable debug mode\n"
+    printf " -T|--tperiod: Packet will be transmit each PERIOD microseconds (must >=50us, $TIME_PERIODus by default, 5000000 max)\n"
+    printf " -d|--destmac: Destination MAC address: use ':' format, default is $DEST_MACADDR\n"
+    printf " -c|--pktcnt: Total packet to be send to destination ($SEND_PKTCNT by default, must not >1500000)\n"
     printf " -h|--help, Print help\n"
 
 return 0
@@ -46,11 +46,6 @@ return 0
 
 
 main() {
-    #if [ $USER != "root" ]; then
-    #    echo "Please run as root"
-    #    exit
-    #fi
-
     # Check for minimum inputs
     if [ "$1" = "--help" -o $# -lt 3 ]; then
         show_usage
@@ -79,7 +74,7 @@ main() {
     ip a show $IFACE up > /dev/null
     if [ $? -eq 1 ]; then echo "Error: Invalid interface $IFACE"; exit 1; fi
 
-    if [ "$ACTION" = "setup" -o "$ACTION" = "init" ]; then
+    if [ "$ACTION" = "setup" ]; then
         ethtool -T  $IFACE | grep -E '(hardware-transmit|software-transmit)'
         if [ $? -eq 1 ];
         then
