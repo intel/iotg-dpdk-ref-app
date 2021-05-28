@@ -3,6 +3,7 @@
 MOUNT_DIR="/dev/hugepages"
 APP_COMPONENT=""
 
+HUGEPAGES=2048
 PORTMASK="0x1"
 LCOREQ=1
 OUTPUTFILE="default_listenerOPfile.csv"
@@ -91,7 +92,7 @@ main() {
             fi
 	    echo "Mounting hugepages"
             mountpoint -q $MOUNT_DIR || mount -t hugetlbfs nodev $MOUNT_DIR
-            echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+            echo $HUGEPAGES > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
             ethtool -K $IFACE ntuple on
 
             if [ "$APP_COMPONENT" = "listener" ]; then
