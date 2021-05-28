@@ -79,10 +79,10 @@ main() {
     if [ $? -eq 1 ]; then echo "Error: Invalid interface $IFACE"; exit 1; fi
 
     if [ "$ACTION" = "setup" -o "$ACTION" = "init" ]; then
-        ethtool -T  $IFACE | grep "PTP Hardware Clock: 0"
+        ethtool -T  $IFACE | grep -E '(hardware-transmit|software-transmit)'
         if [ $? -eq 1 ];
         then
-            echo "NIC does not support PTP feature, so ptp time_sync is not executed and we will not get appropriate latency from the below listener app"
+            echo "NIC does not support PTP feature. The DPDK reference application will not be executed."
             exit 1
         else
             if [ ! -d $MOUNT_DIR ]
