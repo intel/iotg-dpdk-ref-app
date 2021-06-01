@@ -149,7 +149,7 @@ main() {
                 esac
                 shift
             done
-            ./listener/build/listener -l 2-3 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=3 -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE -D $DEBUG
+            ./listener/build/listener -l 3 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=3 -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE -D $DEBUG
         elif [ "$APP_COMPONENT" = "talker" ]; then
             while [ ! -z "$5" ]; do
                 case "$5" in
