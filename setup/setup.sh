@@ -272,11 +272,14 @@ main()
             fi
 
             msg=`tail -n 1 /var/log/ptp4l.log | awk '{ print $3 }'`
-            if [ $msg -lt 100 ]; then
-                echo time is sync
-                break
-            else
-                echo time is NOT sync
+            re='^[0-9]+$'
+            if  [[ $msg =~ $re ]]; then
+                if [ $msg -lt 100 ]; then
+                    echo time is sync
+                    break
+                else
+                    echo time is NOT sync
+                fi
             fi
             ((c++))
         done
