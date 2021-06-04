@@ -17,12 +17,12 @@ All examples are run with 2 units of the same platform. Mind the notation
 "[Board A or B]". The following steps assumes both platforms are connected
 to each other via an Ethernet connection and user has a terminal open
 
-./run.sh <PLAT> <IFACE> [ACTION] [APP-COMPONENT] <Options>
+./run.sh <PLAT> <BOARD> <IFACE> [ACTION] [APP-COMPONENT] <Options>
 
 [Board A]: Listener app
 
-Example for listener setup: ./run.sh tgl enp169s0 setup listener
-Example for listener run: ./run.sh tgl enp169s0 run listener -f output.csv
+Example for listener setup: ./run.sh i225 tgl enp169s0 setup listener
+Example for listener run: ./run.sh i225 tgl enp169s0 run listener -f output.csv
 
 
 Listener Options:
@@ -35,8 +35,8 @@ Listener Options:
 
 [Board B]: Talker app
 
-Example for talker setup: ./run.sh tgl enp169s0 setup talker
-Example for talker run: ./run.sh tgl enp169s0 run talker -T 500 -d 08:00:27:cf:69:3e -c 5000 -D 0
+Example for talker setup: ./run.sh i225 tgl enp169s0 setup talker
+Example for talker run: ./run.sh i225 tgl enp169s0 run talker -T 500 -d 08:00:27:cf:69:3e -c 5000 -D 0
 
 Talker Options:
 ---------------
