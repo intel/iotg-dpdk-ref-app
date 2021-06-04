@@ -117,12 +117,7 @@ setup_taprio()
 	# # To use replace, we need a base for the first time. Also, we want to
 	# # ensure no packets are "stuck" in a particular queue if TAPRIO completely
 	# # closes it off.
-	# # This command is does nothing if used when there's an existing qdisc.
-	tc qdisc add dev $IFACE root mqprio \
-		num_tc 1 map 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \
-		queues 1@0 hw 0 &> /dev/null
 
-	sleep 5
 	TAPRIO_ARR=$TAPRIO_MAP
 	NUM_TC=$(printf "%s\n" ${TAPRIO_ARR[@]} | sort | tail -n 1)
 
@@ -143,7 +138,7 @@ setup_taprio()
 					"num_tc $NUM_TC map $TAPRIO_MAP" \
 					"queues $QUEUE_OFFSETS " \
 					"base-time $BASE" \
-					"${TAPRIO_SCHED[@]}" \
+					"$TAPRIO_SCHED" \
 					"$TAPRIO_FLAGS")
 
 	echo "Run: $CMD"; $CMD;
@@ -168,8 +163,7 @@ setup_etf()
 	# The ETF_DELTA dont really apply to AF_XDP.
 
 	CMD=$(echo "tc qdisc replace dev $IFACE parent $HANDLE_ID:$NORMAL_QUEUE etf" \
-					" clockid CLOCK_TAI delta $ETF_DELTA offload" \
-					" $ETF_FLAGS") #deadline_mode off skip_sock_mode off
+					" clockid CLOCK_TAI delta $ETF_DELTA offload")
 
 	echo "Run: $CMD"; $CMD;
 	sleep 10
@@ -238,9 +232,9 @@ main()
 		exit 1
 	fi
 
+        init_interface $IFACE
+
 	if [[ $MODE == "listener" ]]; then
-                init_interface $IFACE
-		set_irq $IFACE
 		setup_mqprio $IFACE
 		set_rule $IFACE
 
@@ -249,11 +243,9 @@ main()
 
 		# Use flow-type to push iperf3 packet to 0
 		ethtool -N $IFACE flow-type ether proto 0x0800 queue 0
-		echo "Adding flow-type for iperf3 packet to q-0"
+		echo "Adding flow-type for regular packet to q-0"
 
 	elif [[ $MODE == "talker" ]]; then
-		init_interface $IFACE
-		set_irq $IFACE
 		setup_taprio $IFACE
 		setup_etf $IFACE
 		set_rule $IFACE
