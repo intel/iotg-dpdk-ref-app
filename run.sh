@@ -21,10 +21,11 @@ normal=$(tput sgr0)
 show_usage (){
     printf "Usage: $0 [options [parameters]]\n"
     printf "\n"
-    printf "Usage: ./run.sh <PLAT> <IFACE> [ACTION] [APP-COMPONENT] <Options>\n\n"
+    printf "Usage: ./run.sh <PLAT> <BOARD> <IFACE> [ACTION] [APP-COMPONENT] <Options>\n\n"
     printf "Usage Example: ./run.sh tgl enp169s0 run listener -D 1\n"
-    printf "<PLAT>: Example: tgl, i225 etc \n"
-    printf "<IFACE>: Example: enp169s0 \n"
+    printf "<PLAT>: Network Interface Card. Example: i225 etc \n"
+    printf "<BOARD>: Example: icx, tglu \n"
+    printf "<IFACE>: Netork interface. Example: enp169s0 \n"
     printf "[ACTION]: setup or run \n"
     printf "[APP-COMPONENT]: listener, talker\n"
     printf "<Options>: are specified below and vary for listener and talker applications\n"
@@ -65,20 +66,21 @@ main() {
     fi
 
     PLAT=$1
-    IFACE=$2
-    ACTION=$3
-    APP_COMPONENT=$4
+    BOARD=$2
+    IFACE=$3
+    ACTION=$4
+    APP_COMPONENT=$5
 
 
-    # Check for <PLAT>
-    if [ "$1" = "tgl" -o "$1" = "i225" ]; then
-        echo "Platform is $1"
-    elif [ "$1" = "ehl" -o "$1" = "tglh" -o "$1" = "adl" -o "$1" = "tglh2" -o "$1" = "ehl2" -o "$1" = "adl2" ]; then
-        echo -e "Warning: This application is verified on Tgl platform.\n" \
+    # Check for <BOARD>
+    if [ "$2" = "icx" -o "$2" = "tgl" ]; then
+        echo "Platform is $2"
+    elif [ "$1" = "ehl" -o "$2" = "tglh" -o "$2" = "adl" -o "$2" = "tglh2" -o "$2" = "ehl2" -o "$2" = "adl2" ]; then
+        echo -e "Warning: This application is verified on Tgl-U platform.\n" \
                 "This application works irrespective of platforms and depends on NIC \n" \
                 "Please report if you see any issues with other platforms";
     else
-        echo -e "Run.sh invalid <PLAT>:"
+        echo -e "Run.sh invalid <BOARD>:"
         exit 1
     fi
 
@@ -118,28 +120,28 @@ main() {
             fi
 
             echo "Configure network interface $IFACE as $APP_COMPONENT"
-            ./setup/setup.sh $IFACE $APP_COMPONENT $PLAT
+            ./setup/setup.sh $IFACE $APP_COMPONENT $PLAT $BOARD
         fi
 
     elif [ "$ACTION" = "run" ]; then
         if [ "$APP_COMPONENT" = "listener" ]; then
-            while [ ! -z "$5" ]; do
-                case "$5" in
+            while [ ! -z "$6" ]; do
+                case "$6" in
                     --portmask|-p)
                         shift
-                        PORTMASK=$5
+                        PORTMASK=$6
                         ;;
                     --lcoreq|-q)
                         shift
-                        LCOREQ=$5
+                        LCOREQ=$6
                         ;;
                     --filename|-f)
                         shift
-                        OUTPUTFILE=$5
+                        OUTPUTFILE=$6
                         ;;
                     --debug|-D)
                         shift
-                        DEBUG=$5
+                        DEBUG=$6
                         ;;
                     *)
                         show_usage
@@ -151,31 +153,31 @@ main() {
             done
             ./listener/build/listener -l 3 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=3 -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE -D $DEBUG
         elif [ "$APP_COMPONENT" = "talker" ]; then
-            while [ ! -z "$5" ]; do
-                case "$5" in
+            while [ ! -z "$6" ]; do
+                case "$6" in
                     --portmask|-p)
                         shift
-                        PORTMASK=$5
+                        PORTMASK=$6
                         ;;
                     --lcoreq|-q)
                         shift
-                        LCOREQ=$5
+                        LCOREQ=$6
                         ;;
                     --tperiod|-T)
                         shift
-                        TIME_PERIOD=$5
+                        TIME_PERIOD=$6
                         ;;
                     --destmac|-d)
                         shift
-                        DEST_MACADDR=$5
+                        DEST_MACADDR=$6
                         ;;
                     --pktcnt|-c)
                         shift
-                        SEND_PKTCNT=$5
+                        SEND_PKTCNT=$6
                         ;;
                     --debug|-D)
                         shift
-                        DEBUG=$5
+                        DEBUG=$6
                         ;;
                     *)
                         show_usage

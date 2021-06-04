@@ -3,6 +3,7 @@
 IFACE=$1
 MODE=$2
 PLAT=$3
+BOARD=$4
 
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PLAT_CONFIG=""
@@ -195,18 +196,19 @@ set_rule()
 usage()
 {
 	echo "Usage: $0"
-	echo "  \$ $0 <interface> <talker/listener> <platform>"
+	echo "  \$ $0 <interface> <talker/listener> <platform> <board>"
 	echo "  interface,          Network interface"
 	echo "  talker/listener,    Choose either talker or listener"
 	echo "  platform,           Currently only support i225"
+	echo "  board,              Currently only support icx, tgl"
 	echo
 	echo "  Example,"
-	echo "  $0 enp169s0 talker i225"
+	echo "  $0 enp169s0 talker i225 tgl"
 }
 
 main()
 {
-	if [[ -z $IFACE || -z $MODE || -z $PLAT ]]; then
+	if [[ -z $IFACE || -z $MODE || -z $PLAT || -z $BOARD ]]; then
 		echo "Error: Missing argument"
 		usage
 		exit 1
@@ -228,7 +230,7 @@ main()
 		echo Read variable iface mac addr=$IFACE_MAC_ADDR
 
 	else
-		echo Error: Invalid platform $PLAT
+		echo Error: Invalid platform $PLAT. Only i225 is supported.
 		exit 1
 	fi
 
@@ -246,10 +248,13 @@ main()
 		echo "Adding flow-type for regular packet to q-0"
 
 	elif [[ $MODE == "talker" ]]; then
-		setup_taprio $IFACE
-		setup_etf $IFACE
+		if [[ $BOARD == "icx" ]]; then
+			setup_taprio $IFACE
+			setup_etf $IFACE
+		fi
 		set_rule $IFACE
         fi
+
 
         sleep 10
         c=1
