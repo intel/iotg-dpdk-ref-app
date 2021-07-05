@@ -1,6 +1,5 @@
 set datafile separator ','
 set terminal pngcairo size 1920,1080
-set output 'plot_pic.png'
 set tmargin 5
 set bmargin 5
 set lmargin 15

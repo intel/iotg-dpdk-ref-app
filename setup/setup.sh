@@ -191,6 +191,14 @@ set_rule()
 	# Use flow-type to push ptp packet to $PTP_RX_Q
         ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q
         echo "Adding flow-type for ptp packet to q-$PTP_RX_Q"
+
+	# Use flow-type to push DPDK reference app packet packet to $RX_PKT_Q
+	ethtool -N $IFACE flow-type ether vlan 24576 vlan-mask 0x1FFF action $RX_PKT_Q
+	echo "Adding flow-type for DPDK reference app with VLAN packet to q-$RX_PKT_Q"
+
+	# Use flow-type to push DPDK reference app with standard IEEE802.3 packet to 0
+	ethtool -N $IFACE flow-type ether proto 0x0800 queue 0
+	echo "Adding flow-type for DPDK reference app with standard IEEE802.3 packet to q-0"
 }
 
 usage()
@@ -237,23 +245,18 @@ main()
         init_interface $IFACE
 
 	if [[ $MODE == "listener" ]]; then
-		setup_mqprio $IFACE
-		set_rule $IFACE
-
-		# Use flow-type to push DPDK reference app packet packet to $RX_PKT_Q
-		ethtool -N $IFACE flow-type ether vlan 24576 vlan-mask 0x1FFF action $RX_PKT_Q
-
-		# Use flow-type to push iperf3 packet to 0
-		ethtool -N $IFACE flow-type ether proto 0x0800 queue 0
-		echo "Adding flow-type for regular packet to q-0"
+		if [[ "$BOARD" == "icx" ]]; then
+			setup_mqprio $IFACE
+		fi
 
 	elif [[ $MODE == "talker" ]]; then
 		if [[ $BOARD == "icx" ]]; then
 			setup_taprio $IFACE
 			setup_etf $IFACE
 		fi
-		set_rule $IFACE
         fi
+
+	set_rule $IFACE
 
 
         sleep 10

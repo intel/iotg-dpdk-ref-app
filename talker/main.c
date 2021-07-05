@@ -107,10 +107,14 @@ struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
 /* Interval of sending packet  */
 #define MAX_PKT_INTERVAL 5000000 /* 5 second */
-static uint64_t pkt_interval = 500; /* default period is 500us */
+#define MIN_PKT_INTERVAL 300 
+
+static uint64_t pkt_interval = 3000; /* default period is 500us */
 
 #define NSEC_PER_SEC 1000000000L
 
+/*max total packet allowed to send*/
+#define MX_PKT_SEND 2000000
 
 /*message size*/
 #define TIME_STAMP_MSG_SIZE 50
@@ -123,6 +127,10 @@ static int ttl_pkt_cnt = 100000;
 
 /*Debug routine*/
 static int is_debug =1;
+
+/*packet type*/
+static int is_vlan = 1;
+
 static void debug0(const char* format,...){
 
   if (is_debug==0) return;
@@ -193,51 +201,45 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 {
 #define VLAN_ID 3
 
-
-
         struct Message {
-		char data[TIME_STAMP_MSG_SIZE];
- 
+		char data[TIME_STAMP_MSG_SIZE]; 
 	};
-	struct rte_ether_hdr *eth_hdr;
-
 
         uint64_t tx_tsp  = get_time_nanosec(CLOCK_REALTIME); 
- 
 
         debug0("\nclock_gettime %"PRIu64
                ",idx %d", tx_tsp,++idx);
 
         char b_tstamp[TIME_STAMP_MSG_SIZE]; 
 
-        char b_idx[10];
-        int i_tmp = sprintf(b_idx,"%d",idx);
+        int i_tmp = 0;
+        char *b_idx  = malloc(snprintf(NULL, 0, "%d", idx) + 1);  //char b_idx[10];     
+        if (b_idx)
+           i_tmp = sprintf(b_idx,"%d",idx);
+                
         i_tmp  = sprintf(b_tstamp,"%"PRIu64
                                       ",%d",tx_tsp,idx);
-
 
         //original code 
 	struct Message obj;
         rte_memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
 
-
-	struct Message *msg;
-	struct rte_ether_addr s_addr = {{0x14,0x02,0xEC,0x89,0x8D,0x24}};
 	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
-
-	uint16_t ether_type = 0xb62c;//htons(0xb62c);
+	uint16_t ether_type = is_vlan==1? 0xb62c: rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);
+        
         debug0("\nether_type=%"PRIu64,ether_type);
 
         int BURST_SIZE = pkt_size;
-
-
-        struct rte_mbuf *m;
-	int i;
+        struct rte_mbuf *m = NULL;
+	int i = 0;
+	struct rte_ether_hdr *eth_hdr = NULL;
+	struct Message *msg = NULL;
 	for(i=0;i<BURST_SIZE;i++) {
 		pkt[i] = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
 		eth_hdr = rte_pktmbuf_mtod(pkt[i],struct rte_ether_hdr*);
 		eth_hdr->d_addr = d_addr;
-		eth_hdr->s_addr = s_addr;
+		// get source MAC address from NIC
+		rte_eth_macaddr_get(0, &eth_hdr->s_addr);
 		eth_hdr->ether_type = ether_type;
 		msg = (struct Message*) (rte_pktmbuf_mtod(pkt[i],char*) + sizeof(struct rte_ether_hdr));
 		*msg = obj;
@@ -245,33 +247,51 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 		pkt[i]->data_len = pkt_size;
 		pkt[i]->pkt_len = pkt_size;
 
+                if (is_vlan ==1){
+                        debug0("\nVlan Packet");
+	                /* ethernet type 802.1q */
+			/* we create TSN packet using Vlan tag with highest priority */
 
-                /* vlan ethernet type 802.1q */
-		/* we create TSN packet using Vlan tag with highest priority */
+			struct rte_vlan_hdr *vh;
+			// Priority code point 7 (highest), 0 (default) 
+			uint16_t vlan_priority = 3; 
+			uint16_t vlan_id = VLAN_ID;
+	                uint16_t vlan_tag = (vlan_priority << 13) | vlan_id;
+	                uint16_t vlan_tag_be = rte_cpu_to_be_16(vlan_tag);
+			struct rte_ether_hdr *oh, *nh;
 
-		struct rte_vlan_hdr *vh;
-		// Priority code point 7 (highest), 0 (default) 
-		uint16_t vlan_priority = 3; 
-		uint16_t vlan_id = VLAN_ID;
-                uint16_t vlan_tag = (vlan_priority << 13) | vlan_id;
-                uint16_t vlan_tag_be = rte_cpu_to_be_16(vlan_tag);
-		struct rte_ether_hdr *oh, *nh;
+			oh = rte_pktmbuf_mtod(pkt[i], struct rte_ether_hdr *);
+                        if (!oh){
+                           printf ("vlan oh pointer is null!");
+                           continue;  
+                        }
+                              
+			nh = (struct rte_ether_hdr *)rte_pktmbuf_prepend(pkt[i], sizeof(struct rte_vlan_hdr));
+                        if (!nh){
+			   printf ("vlan nh pointer is null!");
+                           continue;  
+                        }
 
-		oh = rte_pktmbuf_mtod(pkt[i], struct rte_ether_hdr *);
+			memmove(nh, oh, 2 * RTE_ETHER_ADDR_LEN);
+			nh->ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_VLAN);
 
-		nh = (struct rte_ether_hdr *)rte_pktmbuf_prepend(pkt[i], sizeof(struct rte_vlan_hdr));
-		memmove(nh, oh, 2 * RTE_ETHER_ADDR_LEN);
-		nh->ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_VLAN);
+			vh = (struct rte_vlan_hdr *) (nh + 1);
+			vh->vlan_tci = vlan_tag_be;
 
-		vh = (struct rte_vlan_hdr *) (nh + 1);
-		vh->vlan_tci = vlan_tag_be;
-
-		pkt[i]->pkt_len = pkt_size + sizeof(struct rte_vlan_hdr);
+			pkt[i]->pkt_len = pkt_size + sizeof(struct rte_vlan_hdr);
+                }
 
 
 	}
+        
+        free(b_idx);
 
-       debug0("\nSending Packet (Timestamp:%s) SRC:%02X:%02X:%02X:%02X:%02X:%02X DST:%02X:%02X:%02X:%02X:%02X:%02X\n",
+        if (!eth_hdr) {
+            printf ("ERR: eth_hdr is null on packet idx %d",idx);   
+            return 0;
+        }
+
+        debug0("\nSending Packet (Timestamp:%s) SRC:%02X:%02X:%02X:%02X:%02X:%02X DST:%02X:%02X:%02X:%02X:%02X:%02X\n",
                                 msg->data, 
                                 eth_hdr->s_addr.addr_bytes[0],
                                 eth_hdr->s_addr.addr_bytes[1],
@@ -286,7 +306,7 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
                                 eth_hdr->d_addr.addr_bytes[4],
                                 eth_hdr->d_addr.addr_bytes[5]
                                 );
-
+           
         return 0;
 
 }
@@ -303,11 +323,11 @@ static uint64_t get_time_sec(clockid_t clkid)
 
 /* main processing loop */
 
-
+static uint64_t timer_period = 5; /* default period is 5 seconds */
 static void talker_main_loop(void)
 {
 
-         static long iCnt =0;
+        static long iCnt =0;
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
 	struct rte_mbuf *m;
 	int sent, pkt_interval_us=0;
@@ -346,17 +366,40 @@ static void talker_main_loop(void)
 
     	while (!force_quit) {
 
-	         fflush(stdout);
-        	 pkt_interval_us = pkt_interval;
-	         usleep(pkt_interval_us); 
+                //this is a timer control mechanism to refresh screen under non-debug mode
+                //arbitrary run printf in every cycle will caused intermitently hang 
+		cur_tsc = rte_rdtsc();		
+		diff_tsc = cur_tsc - prev_tsc;
+		if (unlikely(diff_tsc > drain_tsc)) {
+                    if (timer_period > 0) {
+                        timer_tsc += diff_tsc;
+                        if (unlikely(timer_tsc >= timer_period)) {
+	                        if (lcore_id == rte_get_main_lcore()) {
+                                         
+	   		           if (is_debug==0 && icounter < ttl_pkt_cnt-10){		              	     
+                                      fflush(stdout); 
+	                              printf("\r                ");
+	                      	      printf("\rPacket sent: %ld",iCnt);
+		        	   }
+				   timer_tsc = 0;
+				}
+                        }
+                    }
+                    prev_tsc = cur_tsc;
+                }
+
+        	pkt_interval_us = pkt_interval;
+	        usleep(pkt_interval_us); 
 
         	//sending operation stop after hit target number
 	        if (icounter++ >= ttl_pkt_cnt){
-        	     force_quit = true;
+                     sleep(5);       
+         	     force_quit = true;
 	             sleep(5); 
 	        }
 
-      		int BURST_SIZE = 1; 
+
+     		int BURST_SIZE = 1; 
 	        struct rte_mbuf *pkt[BURST_SIZE];
 
 	        int ret01 = construct_packet(pkt, BURST_SIZE);
@@ -367,12 +410,8 @@ static void talker_main_loop(void)
                 for(j=nb_tx;j<BURST_SIZE;j++)
                       rte_pktmbuf_free(pkt[j]);
 
-
-        	if (is_debug==0){
-	              printf("\r                ");
-                      printf("\rPacket sent: %ld",++iCnt);
-	        }
-
+                iCnt++;
+       	
 	}
 
 }
@@ -391,10 +430,11 @@ talker_usage(const char *prgname)
 	printf("%s [EAL options] -- -p PORTMASK [-q NQ]\n"
 	       "  -p PORTMASK: hexadecimal bitmask of ports to configure\n"
 	       "  -q NQ: number of queue (=ports) per lcore (default is 1)\n"
-	       "  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default, 5000000 max)\n"
+	       "  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=300us, 3000us by default, 5000000 max)\n"
                "  -d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e \n"
                "  -D [1,0] (1 to enable debug mode, 0 default disable debug mode) \n"
-               "  -c Total packet to be send to destination (100000 by default, must not >1500000)\n"
+               "  -c Total packet to be send to destination (100000 by default, max 2000000)\n"
+               "  -v Packet type, vlan=1 or standard=0 (1 by default)\n"
 	       "  --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)\n"
 	       "      When enabled:\n"
 	       "       - The source MAC address is replaced by the TX port MAC address\n"
@@ -498,12 +538,12 @@ talker_parse_packet_interval(const char *q_arg)
 	int n;
 
 	/* parse number string */
-	n = strtol(q_arg, &end, 10);
+	n = strtol(q_arg, &end, 10);        
 	if ((q_arg[0] == '\0') || (end == NULL) || (*end != '\0'))
 		return -1;
-	if (n > MAX_PKT_INTERVAL)
+	if (n > MAX_PKT_INTERVAL || n < MIN_PKT_INTERVAL)
 		return -1;
-
+        
 	return n;
 }
 
@@ -516,8 +556,12 @@ talker_parse_dst_mac(const char *q_arg)
   char dst_mac_str[] = "000000000000";
   for (int i =0,j=0; i <17; i++)
   {
-     if (q_arg[i] != ':')
-       dst_mac_str[j++] = q_arg[i];
+     if (q_arg[i] != ':'){
+       if (j>=0 && j < sizeof(dst_mac_str)/sizeof(dst_mac_addr[0]))       
+          dst_mac_str[j] = q_arg[i];
+        
+       j++; 
+     }
      else if (q_arg[i] == ':')
        n++;
 
@@ -528,10 +572,15 @@ talker_parse_dst_mac(const char *q_arg)
   uint8_t num = 0;
   for(int k=0;k<6;k++)
   {
-        for(int i=0;i<2;i++)
+        for(int i=0;i<2;i++){
+          if (i+j>=0 && i+j < sizeof(dst_mac_str)/sizeof(dst_mac_addr[0])) 
             dummy[i] = dst_mac_str[i+j];
+        }
+
         num = strtol(dummy, NULL, 16);
         j=j+2;
+
+
         dst_mac_addr[k] = num;
   }
 
@@ -560,8 +609,9 @@ l2fwd_parse_ttl_pkt(const char *q_arg)
 	if ((q_arg[0] == '\0') || (end == NULL) || (*end != '\0'))
 		return -1;
 
-	if (n > INT_MAX || n == 0){
-                ttl_pkt_cnt = INT_MAX-10;
+	if (n > MX_PKT_SEND  || n == 0){
+                ttl_pkt_cnt = MX_PKT_SEND;
+                printf ("\nWARNING: Max Total Packet allowed to send is %d.\n", ttl_pkt_cnt);
 		return -1;
         }
 
@@ -570,14 +620,27 @@ l2fwd_parse_ttl_pkt(const char *q_arg)
 	return n;
 }
 
+static int
+l2fwd_parse_vlan (const char *q_arg)
+{
+	if (*q_arg == '1')
+             is_vlan = 1;
+	else
+	     is_vlan = 0;
+
+        return 1;
+}
+
+
 
 static const char short_options[] =
 	"p:"  /* portmask */
 	"q:"  /* number of queues */
 	"T:"  /* packet sent interval  */
         "d:"  /* destination mac adddress */ 
-        "D:"  /*debug mode*/
-        "c:"  /*total packet to be send*/
+        "D:"  /* debug mode */
+        "c:"  /* total packet to be send */
+        "v:"  /* vlan packet type? */
 	;
 
 #define CMD_LINE_OPT_MAC_UPDATING "mac-updating"
@@ -668,6 +731,12 @@ talker_parse_args(int argc, char **argv)
                 case 'c':
                         ret = l2fwd_parse_ttl_pkt(optarg);
 			break;
+
+                /*debug option*/ 
+                case 'v':
+                        ret = l2fwd_parse_vlan(optarg);
+			break;
+
 
                 /* long options */
 		case CMD_LINE_OPT_PORTMAP_NUM:
@@ -840,6 +909,7 @@ main(int argc, char **argv)
 
 	printf("MAC updating %s\n", mac_updating ? "enabled" : "disabled");
 
+        timer_period *= rte_get_timer_hz();
 
 	nb_ports = rte_eth_dev_count_avail();
 	if (nb_ports == 0)
@@ -1065,12 +1135,21 @@ main(int argc, char **argv)
 
 
         struct rte_eth_stats eth_stats;
+        char pkt_type[20];
+        char pkt_std[] = "IEEE802.3 Standard";
+        char pkt_vlan[] = "IEEE802.1q VLAN";
 	RTE_ETH_FOREACH_DEV(portid) {
 		if ((l2fwd_enabled_port_mask & (1 << portid)) == 0)
 			continue;
 
+                if (is_vlan == 1)
+                    strncpy(pkt_type, pkt_vlan, sizeof(pkt_vlan));
+                else
+                    strncpy(pkt_type, pkt_std, sizeof(pkt_std));
+
                 rte_eth_stats_get(portid, &eth_stats);
                 printf("\nStatistics for port %u\n------------------------------"
+                           "\nPacket type: %s"
                            "\nPackets sent: %"PRIu64
                            "\nPackets sent (bytes): %"PRIu64
                            "\nPackets sent dropped: %"PRIu64
@@ -1079,6 +1158,7 @@ main(int argc, char **argv)
                            "\nPackets received dropped (no RX buffer) : %"PRIu64
                            "\nPackets received dropped (other errors) : %"PRIu64,
                            portid,
+                           pkt_type,
                            eth_stats.opackets,
                            eth_stats.obytes,
                            eth_stats.oerrors,
@@ -1089,11 +1169,12 @@ main(int argc, char **argv)
 
 
 		printf("\nClosing port %d...", portid);
-		ret = rte_eth_dev_stop(portid);
+                ret = rte_eth_dev_stop(portid);
 		if (ret != 0)
 			printf("rte_eth_dev_stop: err=%d, port=%d\n",
 			       ret, portid);
 		rte_eth_dev_close(portid);
+                
 	}
 
 

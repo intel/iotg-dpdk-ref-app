@@ -47,7 +47,7 @@ RUN LISTENER
 An executable program listen to all L2 (MAC/Ethernet level) broadcasting data frame
 
 compile:  
-make static  
+make
 
 Route Packet to queue 3 
 ----------------------------------
@@ -82,7 +82,7 @@ RUN Talker
 An executable program receiving L2 (MAC/Ethernet level) data frame
 
 compile:  
-make static  
+make
 
 Run  
 ====
