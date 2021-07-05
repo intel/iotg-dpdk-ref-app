@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause
- * Copyright(c) 2010-2016 Intel Corporation
+ * Copyright(c) 2010-2021 Intel Corporation
  */
 
 #include <stdio.h>
@@ -19,6 +19,9 @@
 #include <stdbool.h>
 #include <float.h>
 #include <math.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include <rte_common.h>
 #include <rte_log.h>
@@ -42,6 +45,7 @@
 #include <rte_mbuf.h>
 #include <rte_string_fns.h>
 #include <rte_flow.h>
+
 
 static volatile bool force_quit;
 
@@ -112,13 +116,14 @@ static struct rte_eth_conf port_conf = {
 
 #define MAX_TIMER_PERIOD 86400 /* 1 day max */
 /* A tsc-based timer responsible for triggering statistics printout */
-static uint64_t timer_period = 10; /* default period is 10 seconds */
+static uint64_t timer_period = 5; /* default period is 5 seconds */
 
 /*  statistics struct */
 struct latency_stats {
 	int  median;
 	int  avg;
         double stddev;
+        char pkt_type[20];
 } ltc_stats;
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
@@ -154,12 +159,12 @@ static uint64_t get_time_nanosec_hwtsp(int port)
 
 }
 
-#define MX_PKT_RCV 2000000
-static int iCnt = 0; 
-static int pCnt = 0;
-static uint64_t  a_latency[MX_PKT_RCV]; 
+#define MX_PKT_RCV 6000000
+static  volatile int iCnt = 0; 
+static  volatile int  pCnt = 0;
+static  uint64_t a_latency[MX_PKT_RCV]; 
 
-static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl, FILE *fp)
+static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_ttl, FILE *fp,unsigned lcore_id)
 {
 
 #define TALKER_PACKET_ETH_TYPE 2048
@@ -183,11 +188,20 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
  
        }
 
+        char pkt_std[] = "IEEE802.3 Standard";
+        char pkt_vlan[] = "IEEE802.1q VLAN";
+        char pkt_unknown[] = "unknown";
+        if (rte_cpu_to_be_16(eth_hdr->ether_type) == RTE_ETHER_TYPE_IPV4)
+            strncpy(ltc_stats.pkt_type, pkt_std, sizeof(pkt_std));
+        else if (rte_cpu_to_be_16(eth_hdr->ether_type) == RTE_ETHER_TYPE_VLAN)
+            strncpy(ltc_stats.pkt_type, pkt_vlan, sizeof(pkt_vlan));
+        else
+            strncpy(ltc_stats.pkt_type, pkt_unknown, sizeof(pkt_unknown));
 
         //fprintf (stdout,"\n------------------------------------------");
         debug0("\n------------------------------------------");
         debug0("\nbatch: %d of %d",rx_batch_idx,rx_batch_ttl);
-        debug0("\nether_type=%d",eth_hdr->ether_type);
+        debug0("\nether_type=%"PRIu64,eth_hdr->ether_type);
         debug0("\nPayload Data Size=%d",datalen);
 
         debug0("\nSOURCE MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
@@ -225,36 +239,39 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 
 
         char b_tx_tsp[20];
-        int i,j;
-        for(j=4,i=0;j<24;j++,i++){
-           b_tx_tsp[i] = msg[j];
+        int i=0,j=0;
+        int i_start_idx = eth_hdr->ether_type==129 ? 4: 0;
+        for(j=i_start_idx,i=0;j<24;j++,i++){
+          if (i>=0 && i < sizeof(b_tx_tsp)/sizeof(b_tx_tsp[0]))  
+              b_tx_tsp[i] = msg[j];
         }
 
         fprintf(fp,"%d,", 0);
-
-        /*for(i=0;j<24;i++){
-           b_tx_tsp[i] = msg[i];
-        }*/
-
-
+        
 	uint64_t now_tsp  = get_time_nanosec(CLOCK_REALTIME);
 
         uint64_t tx_tsp;
-        sscanf(b_tx_tsp, "%"PRIu64, &tx_tsp);
+        sscanf(b_tx_tsp, "%"PRIu64, &tx_tsp);        
+        if (tx_tsp<0 || tx_tsp> UINT64_MAX) {
+            printf ("\nAbnormal tx_tsp for %d, reset to 0",iCnt); 
+            tx_tsp = 0;
+        }        
         uint64_t delta_val = now_tsp - tx_tsp;
 
         debug0("\ntx_tsp:%"PRIu64,tx_tsp);
         debug0("\nnw_tsp:%"PRIu64,now_tsp);
         debug0("\nlatency(ns):%"PRIu64,delta_val);
-        debug0("\nidx:");
+        debug0("\nraw:");
 
         fprintf(fp,"%"PRIu64,delta_val);
         pCnt++;
         fprintf(fp,",%d\n", pCnt);
 
-        for (j=24; j <100; j++)
+
+
+        for (j=0; j <100; j++)
         {
-            if (isdigit(msg[j]))
+            //if (isdigit(msg[j]))
                 debug0("%c",msg[j]);
 
         }
@@ -263,18 +280,16 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 
 
         if (delta_val>=0 && delta_val< INT_MAX) //sanity check 
-             a_latency[iCnt] = delta_val; 
-        else
+             a_latency[iCnt] = delta_val;     
+        
+        else {
           a_latency[iCnt] = -1; //error
-
-
-        iCnt++;
-
-        if (is_debug==0){
-             printf("\r                ");
-             printf("\rPacket received: %d",iCnt);
+          debug0 ("\nERR IDX=%d LATENCY:%d", iCnt,delta_val);
         }
 
+
+        iCnt++;        
+        
         return 1;
 
 }
@@ -358,9 +373,7 @@ l2fwd_main_loop(void)
 			BURST_TX_DRAIN_US;
 	struct rte_eth_dev_tx_buffer *buffer;
 
-	FILE *fp;
-	fp = fopen(output_file, "w");
-
+	
 	prev_tsc = 0;
 	timer_tsc = 0;
 
@@ -382,27 +395,35 @@ l2fwd_main_loop(void)
 
 	}
  
-        int i_clean = 0; 
+        int i_clean = 0;
+               
+        FILE* fp = fopen(output_file,"w");        
+	if (!fp)	
+		rte_exit(EXIT_FAILURE, "Cannot open output_file:%s\n", output_file);	
+        
 	while (!force_quit) {
 
-                fflush(stdout);
-
-		//cur_tsc = rte_rdtsc();
-		/*
-		 * TX burst queue drain
-		 */
-		/*diff_tsc = cur_tsc - prev_tsc;
-		if (unlikely(diff_tsc > drain_tsc)) {
-
-			for (i = 0; i < qconf->n_rx_port; i++) {
-
-				portid = l2fwd_dst_ports[qconf->rx_port_list[i]];
-				buffer = tx_buffer[portid];
-				sent = rte_eth_tx_buffer_flush(portid, 0, buffer);
-			}
-		        prev_tsc = cur_tsc;
-		}*/
-
+                //this is a timer control mechanism to refresh screen under non-debug mode
+                //arbitrary run printf in every cycle will caused intermitently hang                
+                cur_tsc = rte_rdtsc();
+                diff_tsc = cur_tsc - prev_tsc;
+                if (unlikely(diff_tsc > drain_tsc)) {
+                    if (timer_period > 0) {
+                        timer_tsc += diff_tsc;
+                        if (unlikely(timer_tsc >= timer_period)) {
+                                if (lcore_id == rte_get_main_lcore()) {
+                                   if (is_debug==0){                                     
+                                     fflush(stdout);
+                                     printf("\r                ");
+                                     printf("\rPacket received: %ld",iCnt);	
+                                   }
+                                   timer_tsc = 0;
+                                }
+                        }
+                    }
+                    prev_tsc = cur_tsc;
+                }                
+		
 		/*
 		 * Read packet from RX queues
 		 */
@@ -419,12 +440,14 @@ l2fwd_main_loop(void)
 
 				m = pkts_burst[j];
                                 datalen = rte_pktmbuf_pkt_len(m);
-                                to_local = extract_l2packet(m,j+1,nb_rx,fp);
+                                to_local = extract_l2packet(m,j+1,nb_rx,fp,lcore_id);
 			        nb_tx  = l2fwd_simple_forward(m, portid,to_local);
 			}
 
 
 		}
+
+                usleep(2);
 
 	}
 
@@ -450,7 +473,8 @@ l2fwd_main_loop(void)
                } 
             }
 
-            ltc_stats.avg = sum/iActualCnt*1000;
+	    if (iActualCnt)
+                ltc_stats.avg = sum/iActualCnt*1000;
 
 
             //standard deviation 
@@ -466,7 +490,8 @@ l2fwd_main_loop(void)
                }
                if (stdsum>=LLONG_MAX) break;
             }
-            variance = stdsum / iActualCnt;
+	    if (iActualCnt)
+                variance = stdsum / iActualCnt;
             if (variance >0)stddev = sqrt(variance) * 1000;
             ltc_stats.stddev = stddev;
 
@@ -612,14 +637,15 @@ l2fwd_parse_timer_period(const char *q_arg)
 static int
 l2fwd_parse_output_file(const char *q_arg)
 {
-	int file_length = 0;
-	file_length = strlen(q_arg);
-	if (file_length > 30)
-		return 0;
-	else
-	{
-		strcpy(output_file, q_arg);
+	
+	if (strlen(q_arg) > 0 && strlen(q_arg) <=  sizeof(output_file)/sizeof(output_file[0]))
+        {
+		strlcpy(output_file, q_arg,sizeof(output_file));                
 		return 1;
+        }
+	else
+	{              
+		return 0;
 	}
 }
 
@@ -1137,6 +1163,7 @@ main(int argc, char **argv)
 
                 rte_eth_stats_get(portid, &eth_stats);
                 printf("\nStatistics for port %u\n------------------------------"
+                           "\nPacket type: %s"
 			   "\nPackets sent: %"PRIu64
 			   "\nPackets sent (bytes): %"PRIu64
 			   "\nPackets sent dropped: %"PRIu64
@@ -1145,6 +1172,7 @@ main(int argc, char **argv)
 			   "\nPackets received dropped (no RX buffer) : %"PRIu64
 			   "\nPackets received dropped (other errors) : %"PRIu64, 
 			   portid,
+                           ltc_stats.pkt_type,
 			   eth_stats.opackets,
                            eth_stats.obytes,
                            eth_stats.oerrors,
@@ -1152,6 +1180,17 @@ main(int argc, char **argv)
                            eth_stats.ibytes,
                            eth_stats.imissed,
                            eth_stats.ierrors);
+
+               printf("\nSummary Statistics\n------------------------------\n"
+               	"Packet type: %s\n"
+	       	"Median of %d packets latency in nanoseconds  (ns):%d\n"
+	       	"Average of %d packets latency in nanoseconds (ns):%d\n"
+	       	"Standard deviation of %d packets latency in nanoseconds (ns):%lf\n\n",
+                	 ltc_stats.pkt_type,
+		 	iCnt,ltc_stats.median
+			,iCnt,ltc_stats.avg
+			,iCnt,ltc_stats.stddev);
+
 
 
 		printf("\n\nClosing port %d...\n", portid);
@@ -1163,14 +1202,6 @@ main(int argc, char **argv)
 	}
          
 
-        printf("\nSummary Statistics\n------------------------------\n"
-	       "Median of %d packets latency in nanoseconds  (ns):%d\n"
-	       "Average of %d packets latency in nanoseconds (ns):%d\n"
-	       "Standard deviation of %d packets latency in nanoseconds (ns):%lf\n\n",
-		 iCnt,ltc_stats.median
-		,iCnt,ltc_stats.avg
-		,iCnt,ltc_stats.stddev);
-
-
+        
 	return ret;
 }
