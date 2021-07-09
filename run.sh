@@ -65,6 +65,9 @@ function generate_plot()
                 plot=${outfile%.csv}.png
 	        echo "Generate plot for $outfile -> $plot"
                 gnuplot -e "set output '$plot'; FILENAME='$outfile'" $SETUP_DIR/plot-latency.gnu -p
+                echo Results stored in $dt/$outfile
+                mv $outfile $dt/
+                mv $plot $dt/
             fi
 	done
     fi
@@ -85,6 +88,9 @@ main() {
     APP_COMPONENT=$5
     MODE=$6
 
+    dt=$(date '+%d%m%Y%H%M%S');
+    dt="results/$dt"
+    mkdir -p $dt
 
     # Check for <BOARD>
     if [ "$2" = "icx" -o "$2" = "tgl" ]; then
