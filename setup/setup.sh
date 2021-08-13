@@ -29,27 +29,9 @@ function init_interface()
 	ip link set dev $IFACE up
 	sleep 3
 
-	# Set VLAN ID to 3, all traffic fixed to one VLAN ID, but vary the VLAN Priority
-	#ip link delete dev $IFACE.vlan 2> /dev/null
-	#ip link add link $IFACE name $IFACE.vlan type vlan id $IFACE_VLAN_ID
-
 	# Provide static ip address for interfaces
 	ip addr flush dev $IFACE
-	#ip addr flush dev $IFACE.vlan
 	ip addr add $IFACE_IP_ADDR/24 brd $IFACE_BRC_ADDR dev $IFACE
-	#ip addr add $IFACE_VLAN_IP_ADDR/24 brd $IFACE_VLAN_BRC_ADDR dev $IFACE.vlan
-
-	# Map socket priority N to VLAN priority N
-	if [ "$VLAN_PRIORITY_SUPPORT" = "YES" ]; then
-		echo "Mapping socket priority N to VLAN priority N for $IFACE"
-		ip link set $IFACE.vlan type vlan egress-qos-map 1:1
-		ip link set $IFACE.vlan type vlan egress-qos-map 2:2
-		ip link set $IFACE.vlan type vlan egress-qos-map 3:3
-		ip link set $IFACE.vlan type vlan egress-qos-map 4:4
-		ip link set $IFACE.vlan type vlan egress-qos-map 5:5
-		ip link set $IFACE.vlan type vlan egress-qos-map 6:6
-		ip link set $IFACE.vlan type vlan egress-qos-map 7:7
-	fi
 
 	# Flush neighbours, just in case
 	ip neigh flush all dev $IFACE
