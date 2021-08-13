@@ -90,11 +90,11 @@ Run
 
 Options  
   -p PORTMASK: hexadecimal bitmask of ports to configure  
-  -q NQ: number of queue (=ports) per lcore (default is 1)  
-  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=50us, 50us by default, 5000000 max)  
+  -q NQ: number of queue (=ports) per lcore (default is 1)
+  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=300us, 3000us by default, 5000000 max)
   -d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e  
-  -D [1,0] (1 to enable debug mode, 0 default disable debug mode)  
-  -c Total packet to be send to destination (100000 by default, must not >1500000)  
+  -D [1,0] (1 to enable debug mode, 0 default disable debug mode)
+  -c Total packet to be send to destination (100000 by default, max 2000000)
   --[no-]mac-updating: Enable or disable MAC addresses updating (enabled by default)  
       When enabled:  
        - The source MAC address is replaced by the TX port MAC address  

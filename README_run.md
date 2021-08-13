@@ -66,8 +66,8 @@ run:
 Options:  
  -p|--portmask: hexadecimal bitmask of ports to configure. Default is 0x1   
  -q|--lcoreq: NQ: number of queue (=ports) per lcore (default is 1)   
- -D|--debug: 1 to enable debug mode, 0 default disable debug mode   
- -T|--tperiod: Packet will be transmit each PERIOD microseconds (must >=50us,  by default, 5000000 max)    
- -d|--destmac: Destination MAC address: use ':' format, default is 22:bb:22:bb:22:bb   
- -c|--pktcnt: Total packet to be send to destination (100000 by default, must not >1500000)    
+ -D|--debug: 1 to enable debug mode, 0 default disable debug mode
+ -T|--tperiod: Packet will be transmit each PERIOD microseconds (must >=300us, 3000us by default, 5000000 max)
+ -d|--destmac: Destination MAC address: use ':' format, default is 22:bb:22:bb:22:bb
+ -c|--pktcnt: Total packet to be send to destination (100000 by default, max 2000000)
  -h|--help, Print help    

@@ -47,9 +47,9 @@ show_usage (){
     printf " -p|--portmask: hexadecimal bitmask of ports to configure. Default is $PORTMASK\n"
     printf " -q|--lcoreq: NQ: number of queue (=ports) per lcore (default is $LCOREQ)\n"
     printf " -D|--debug: 1 to enable debug mode, $DEBUG default disable debug mode\n"
-    printf " -T|--tperiod: Packet will be transmit each PERIOD microseconds (must >=50us, $TIME_PERIODus by default, 5000000 max)\n"
+    printf " -T|--tperiod: Packet will be transmit each PERIOD microseconds (must >=300us, $TIME_PERIODus by default, 5000000 max)\n"
     printf " -d|--destmac: Destination MAC address: use ':' format, default is $DEST_MACADDR\n"
-    printf " -c|--pktcnt: Total packet to be send to destination ($SEND_PKTCNT by default, must not >1500000)\n"
+    printf " -c|--pktcnt: Total packet to be send to destination ($SEND_PKTCNT by default, max 2000000)\n"
     printf " -h|--help, Print help\n"
 
 return 0
