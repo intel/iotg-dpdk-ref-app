@@ -123,6 +123,7 @@ struct latency_stats {
 	int  median;
 	int  avg;
         double stddev;
+	double jitter;
         char pkt_type[20];
 } ltc_stats;
 
@@ -498,6 +499,20 @@ l2fwd_main_loop(void)
             //get median, this need to at last step else the order of data will be sorted to value
             qsort (a_latency, iCnt, sizeof(uint64_t), sort_compare);
             ltc_stats.median = a_latency[iCnt/2];
+
+
+	    //Jitter Calculation
+	    long latency_diff, sumOfDiff = 0;
+	    int diffCnt = 0;
+	    for (int i=iStartCnt;i<iCnt;i++){
+               if (a_latency[i] > a_latency[i+1])
+                  latency_diff = a_latency[i]-a_latency[i+1];
+	       else
+                  latency_diff = a_latency[i+1]-a_latency[i];
+	       sumOfDiff += latency_diff;
+	       diffCnt++;
+	    }
+	    ltc_stats.jitter = sumOfDiff/diffCnt;
 
 
         }
@@ -1186,10 +1201,12 @@ main(int argc, char **argv)
 	       	"Median of %d packets latency in nanoseconds  (ns):%d\n"
 	       	"Average of %d packets latency in nanoseconds (ns):%d\n"
 	       	"Standard deviation of %d packets latency in nanoseconds (ns):%lf\n\n",
+	       	"Jitter of %d packets latency in nanoseconds (ns):%lf\n\n",
                 	 ltc_stats.pkt_type,
 		 	iCnt,ltc_stats.median
 			,iCnt,ltc_stats.avg
-			,iCnt,ltc_stats.stddev);
+			,iCnt,ltc_stats.stddev
+			,iCnt,ltc_stats.jitter);
 
 
 
