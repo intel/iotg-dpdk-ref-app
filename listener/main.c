@@ -1200,7 +1200,7 @@ main(int argc, char **argv)
                	"Packet type: %s\n"
 	       	"Median of %d packets latency in nanoseconds  (ns):%d\n"
 	       	"Average of %d packets latency in nanoseconds (ns):%d\n"
-	       	"Standard deviation of %d packets latency in nanoseconds (ns):%lf\n\n",
+                "Standard deviation of %d packets latency in nanoseconds (ns):%lf\n\n"
 	       	"Jitter of %d packets latency in nanoseconds (ns):%lf\n\n",
                 	 ltc_stats.pkt_type,
 		 	iCnt,ltc_stats.median
