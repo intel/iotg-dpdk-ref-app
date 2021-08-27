@@ -512,7 +512,8 @@ l2fwd_main_loop(void)
 	       sumOfDiff += latency_diff;
 	       diffCnt++;
 	    }
-	    ltc_stats.jitter = sumOfDiff/diffCnt;
+	    if (diffCnt)
+	       ltc_stats.jitter = sumOfDiff/diffCnt;
 
 
         }
