@@ -11,6 +11,7 @@ Features:
 1. Latency Calculation: This provides the latency of the packet: This is the time from the packet being transmitted to received.
 2. Provides and output file with latency graph
 3. We can spawn two listeners and two talkers on different queues.
+4. Console output provides details likes standard deviation, Jitter, Latency.
 
 Usage:   
 All examples are run with 2 units of the same platform. Mind the notation
