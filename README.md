@@ -1,3 +1,19 @@
+DPDK TALKER/LISTENER App via AF_XDP PMD
+========================================
+This is an DPDK Application which has two components.
+1. Talker: This transmits the packets
+2. Listener: This Listens to the packets transmitted by talker.
+
+This application needs to be executed on 2 boards.
+
+Features of DPDK application:
+============================
+1. Latency Calculation: This provides the latency of the packet: This is the time from the packet being transmitted to received.
+2. Provides and output file with latency graph
+3. We can spawn two listeners and two talkers on different queues.
+4. Console output provides details likes standard deviation, Jitter, Latency.Jitter output is displayed on console in master.
+
+
 HARDWARE Requirement  
 ====================  
 Two PC/VM/boards with Network Connectivity. Both machines' IP should be ping able to each other.   
