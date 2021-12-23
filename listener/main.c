@@ -174,8 +174,8 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
        struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
        char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
        int datalen = rte_pktmbuf_pkt_len(m);  
-       struct rte_ether_addr src01 =  eth_hdr->s_addr;
-       struct rte_ether_addr dst01 =  eth_hdr->d_addr;
+       struct rte_ether_addr src01 =  eth_hdr->src_addr;
+       struct rte_ether_addr dst01 =  eth_hdr->dst_addr;
 
        //ignore packet content processing not to local machine
        if (l2fwd_ports_eth_addr[0].addr_bytes[0] != dst01.addr_bytes[0] ||
@@ -321,11 +321,11 @@ l2fwd_mac_updating(struct rte_mbuf *m, unsigned dest_portid)
 	eth = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
 
 	/* 02:00:00:00:00:xx */
-	tmp = &eth->d_addr.addr_bytes[0];
+	tmp = &eth->dst_addr.addr_bytes[0];
 	*((uint64_t *)tmp) = 0x000000000002 + ((uint64_t)dest_portid << 40);
 
 	/* src addr */
-	rte_ether_addr_copy(&l2fwd_ports_eth_addr[dest_portid], &eth->s_addr);
+	rte_ether_addr_copy(&l2fwd_ports_eth_addr[dest_portid], &eth->src_addr);
 }
 
 static int
