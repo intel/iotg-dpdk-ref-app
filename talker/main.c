@@ -154,11 +154,11 @@ l2fwd_mac_updating(struct rte_mbuf *m, unsigned dest_portid)
 	eth = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
 
 	/* 02:00:00:00:00:xx */
-	tmp = &eth->d_addr.addr_bytes[0];
+	tmp = &eth->dst_addr.addr_bytes[0];
 	*((uint64_t *)tmp) = 0x000000000002 + ((uint64_t)dest_portid << 40);
 
 	/* src addr */
-	rte_ether_addr_copy(&l2fwd_ports_eth_addr[dest_portid], &eth->s_addr);
+	rte_ether_addr_copy(&l2fwd_ports_eth_addr[dest_portid], &eth->src_addr);
 }
 
 static void
@@ -237,9 +237,9 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 	for(i=0;i<BURST_SIZE;i++) {
 		pkt[i] = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
 		eth_hdr = rte_pktmbuf_mtod(pkt[i],struct rte_ether_hdr*);
-		eth_hdr->d_addr = d_addr;
+		eth_hdr->dst_addr = d_addr;
 		// get source MAC address from NIC
-		rte_eth_macaddr_get(0, &eth_hdr->s_addr);
+		rte_eth_macaddr_get(0, &eth_hdr->src_addr);
 		eth_hdr->ether_type = ether_type;
 		msg = (struct Message*) (rte_pktmbuf_mtod(pkt[i],char*) + sizeof(struct rte_ether_hdr));
 		*msg = obj;
@@ -293,18 +293,18 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 
         debug0("\nSending Packet (Timestamp:%s) SRC:%02X:%02X:%02X:%02X:%02X:%02X DST:%02X:%02X:%02X:%02X:%02X:%02X\n",
                                 msg->data, 
-                                eth_hdr->s_addr.addr_bytes[0],
-                                eth_hdr->s_addr.addr_bytes[1],
-                                eth_hdr->s_addr.addr_bytes[2],
-                                eth_hdr->s_addr.addr_bytes[3],
-                                eth_hdr->s_addr.addr_bytes[4],
-                                eth_hdr->s_addr.addr_bytes[5],
-                                eth_hdr->d_addr.addr_bytes[0],
-                                eth_hdr->d_addr.addr_bytes[1],
-                                eth_hdr->d_addr.addr_bytes[2],
-                                eth_hdr->d_addr.addr_bytes[3],
-                                eth_hdr->d_addr.addr_bytes[4],
-                                eth_hdr->d_addr.addr_bytes[5]
+                                eth_hdr->src_addr.addr_bytes[0],
+                                eth_hdr->src_addr.addr_bytes[1],
+                                eth_hdr->src_addr.addr_bytes[2],
+                                eth_hdr->src_addr.addr_bytes[3],
+                                eth_hdr->src_addr.addr_bytes[4],
+                                eth_hdr->src_addr.addr_bytes[5],
+                                eth_hdr->dst_addr.addr_bytes[0],
+                                eth_hdr->dst_addr.addr_bytes[1],
+                                eth_hdr->dst_addr.addr_bytes[2],
+                                eth_hdr->dst_addr.addr_bytes[3],
+                                eth_hdr->dst_addr.addr_bytes[4],
+                                eth_hdr->dst_addr.addr_bytes[5]
                                 );
            
         return 0;
