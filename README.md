@@ -21,8 +21,8 @@ OS: Linux Kernel with XDP support, tested on Ubuntu 20.04 kernel 5.4 and 5.10
 
 DPDK 21.11
 ==========
-This version is compatible with DPDK 21.11.  
-Please find in other branches for different DPDK compatible version.  
+This branch is compatible with DPDK 21.11.  
+Please find other branches for different DPDK version compatible reference app.  
 DPDK library installation guide: https://core.dpdk.org/doc/quick-start/
 
 SETUP ENVIRONMENT
