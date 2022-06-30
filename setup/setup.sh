@@ -24,7 +24,7 @@ function init_interface()
 
 	# Restart interface and systemd, also set HW MAC address for multicast
 	ip link set $IFACE down
-	systemctl restart systemd-networkd.service
+	# systemctl restart systemd-networkd.service
 	ip link set dev $IFACE address $IFACE_MAC_ADDR
 	ip link set dev $IFACE up
 	sleep 3
