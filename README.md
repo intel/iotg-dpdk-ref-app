@@ -19,8 +19,8 @@ HARDWARE Requirement
 Two PC/VM/boards with Network Connectivity. Both machines' IP should be ping able to each other.   
 OS: Linux Kernel with XDP support, tested on Ubuntu 20.04 kernel 5.4 and 5.10  
 
-Kernel Parameter  
-=================
+Kernel Parameters Requirement   
+=============================
 Please ensure both parameters added into Kernel boot:  
 iommu=pt intel_iommu=on
 
