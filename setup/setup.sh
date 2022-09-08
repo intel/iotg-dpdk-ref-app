@@ -204,7 +204,7 @@ main()
 		exit 1
 	fi
 
-	if [[ $PLAT == "i225" ]]; then
+	if [[ $PLAT == "i225" ] || [ $PLAT == "i226" ] || [ $PLAT == "igc" ]]; then
 		if [[ $MODE == "listener" ]]; then
 			PLAT_CONFIG="i225-rx.config"
 
@@ -220,7 +220,7 @@ main()
 		echo Read variable iface mac addr=$IFACE_MAC_ADDR
 
 	else
-		echo Error: Invalid platform $PLAT. Only i225 is supported.
+		echo Error: Invalid platform $PLAT. Only i225/i226/igc supported.
 		exit 1
 	fi
 
