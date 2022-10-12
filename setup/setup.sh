@@ -204,7 +204,7 @@ main()
 		exit 1
 	fi
 
-	if [[ $PLAT == "i225" ] || [ $PLAT == "i226" ] || [ $PLAT == "igc" ]]; then
+	if [[ $PLAT == "i225" || $PLAT == "i226" || $PLAT == "igc" ]]; then
 		if [[ $MODE == "listener" ]]; then
 			PLAT_CONFIG="i225-rx.config"
 
