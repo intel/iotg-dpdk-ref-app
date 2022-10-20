@@ -21,11 +21,11 @@ to each other via an Ethernet connection and user has a terminal open
 **./run.sh <PLAT> <BOARD> <IFACE> [ACTION] [APP-COMPONENT] [MODE] <Options>**        
 
 **Example:    
-  ./run.sh i225 tgl enp169s0 run listener single -D 1**       
+  ./run.sh i226 rpl enp169s0 run listener single -D 1**       
 
-\<PLAT\>: Network Interface Card. Example: i225 etc   
-\<BOARD\>: Example: icx, tglu   
-\<IFACE\>: Netork interface. Example: enp169s0   
+\<PLAT\>: Network Interface Card. Example: i225, i226 etc   
+\<BOARD\>: Example: icx, tglu, adl, rpl   
+\<IFACE\>: Network interface. Example: enp169s0   
 \[ACTION\]: setup or run   
 \[APP-COMPONENT\]: listener, talker   
 \[MODE\]: single, dual, mix   
@@ -40,10 +40,10 @@ Run Listener App - Listening to the incoming L2 packet:
 
 [Board A]:      
 Environment setup:   
-**./run.sh i225 tgl enp169s0 setup listener**      
+**./run.sh i226 rpl enp169s0 setup listener**      
 
 run:    
-**./run.sh i225 tgl enp169s0 run listener single -f output.csv**    
+**./run.sh i226 rpl enp169s0 run listener single -f output.csv**    
 
 Options:     
  -p|--portmask: hexadecimal bitmask of ports to configure. Default is 0x1  
@@ -59,10 +59,10 @@ Run Talker App - Sending L2 packet to the Listener App:
 [Board B]:    
 
 Environment setup:   
-**./run.sh i225 tgl enp169s0 setup talker**
+**./run.sh i226 rpl enp169s0 setup talker**
 
 run:    
-**./run.sh i225 tgl enp169s0 run talker single -T 500 -d 22:BB:22:BB:22:BB -c 5000 -D 0**  
+**./run.sh i226 rpl enp169s0 run talker single -T 500 -d 22:BB:22:BB:22:BB -c 5000 -D 0**  
 
 Options:  
  -p|--portmask: hexadecimal bitmask of ports to configure. Default is 0x1   

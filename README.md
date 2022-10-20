@@ -17,16 +17,16 @@ Features of DPDK application:
 HARDWARE Requirement  
 ====================  
 Two PC/VM/boards with Network Connectivity. Both machines' IP should be ping able to each other.   
-OS: Linux Kernel with XDP support, tested on Ubuntu 20.04 kernel 5.4 and 5.10  
+OS: Linux Kernel with XDP support, tested on Ubuntu 22.04 kernel 5.19  
 
 Kernel Parameters Requirement   
 =============================
 Please ensure both parameters added into Kernel boot:  
 iommu=pt intel_iommu=on
 
-DPDK 21.11
+DPDK 22.07
 ==========
-This branch is compatible with DPDK 21.11.  
+This branch is compatible with DPDK 22.07.  
 Please find other branches for different DPDK version compatible reference app.  
 DPDK library installation guide: https://core.dpdk.org/doc/quick-start/
 
