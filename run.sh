@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 MOUNT_DIR="/dev/hugepages"
