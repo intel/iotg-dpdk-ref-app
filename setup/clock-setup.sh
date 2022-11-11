@@ -12,16 +12,17 @@ if [[ -z $gPTP_CONF ]]; then
         exit -1
 fi
 
-taskset -c 1 ptp4l -P2Hi $INTERFACE -f $gPTP_CONF --step_threshold=1 --socket_priority=0 -m &> /var/log/ptp4l.log &
+mkdir -p /tmp/dpdk
+taskset -c 1 ptp4l -P2Hi $INTERFACE -f $gPTP_CONF --step_threshold=1 --socket_priority=0 -m &> /tmp/dpdk/ptp4l.log &
 
 sleep 2
 
 pmc -u -b 0 -t 1 "SET GRANDMASTER_SETTINGS_NP clockClass 248
         clockAccuracy 0xfe offsetScaledLogVariance 0xffff currentUtcOffset 37
         leap61 0 leap59 0 currentUtcOffsetValid 1 ptpTimescale 1 timeTraceable
-        1 frequencyTraceable 0 timeSource 0xa0" &> /var/log/pmc.log
+        1 frequencyTraceable 0 timeSource 0xa0" &> /tmp/dpdk/pmc.log
 
 sleep 3
 
 taskset -c 1 phc2sys -s $INTERFACE -c CLOCK_REALTIME --step_threshold=1 \
-        --transportSpecific=1 -O 0 -w -ml 7 &> /var/log/phc2sys.log &
+        --transportSpecific=1 -O 0 -w -ml 7 &> /tmp/dpdk/phc2sys.log &

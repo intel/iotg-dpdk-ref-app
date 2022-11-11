@@ -12,41 +12,41 @@ CONFIG_DIR="$DIR/config"
 function init_interface()
 {
 	# Always remove previous qdiscs
-	tc qdisc del dev $IFACE parent root 2> /dev/null
-	tc qdisc del dev $IFACE parent ffff: 2> /dev/null
-	tc qdisc add dev $IFACE ingress
+	sudo bash -c "tc qdisc del dev $IFACE parent root 2> /dev/null"
+	sudo bash -c "tc qdisc del dev $IFACE parent ffff: 2> /dev/null"
+	sudo tc qdisc add dev $IFACE ingress
 
 	# Set an even queue pair. Minimum is 4 rx 4 tx
 	#if i225
-	ethtool -L $IFACE combined $TX_Q_COUNT
+	sudo ethtool -L $IFACE combined $TX_Q_COUNT
 	RXQ_COUNT=$(ethtool -l $IFACE | sed -e '1,/^Current/d' | grep -i Combined | awk '{print $2}')
 	TXQ_COUNT=$RXQ_COUNT
 
 	# Restart interface and systemd, also set HW MAC address for multicast
-	ip link set $IFACE down
-	systemctl restart systemd-networkd.service
-	ip link set dev $IFACE address $IFACE_MAC_ADDR
-	ip link set dev $IFACE up
+	sudo ip link set $IFACE down
+	sudo systemctl restart systemd-networkd.service
+	sudo ip link set dev $IFACE address $IFACE_MAC_ADDR
+	sudo ip link set dev $IFACE up
 	sleep 3
 
 	# Provide static ip address for interfaces
-	ip addr flush dev $IFACE
-	ip addr add $IFACE_IP_ADDR/24 brd $IFACE_BRC_ADDR dev $IFACE
+	sudo ip addr flush dev $IFACE
+	sudo ip addr add $IFACE_IP_ADDR/24 brd $IFACE_BRC_ADDR dev $IFACE
 
 	# Flush neighbours, just in case
-	ip neigh flush all dev $IFACE
+	sudo ip neigh flush all dev $IFACE
 	#ip neigh flush all dev $IFACE.vlan
 
 	# Turn off VLAN Stripping
 	if [ "$VLAN_STRIP_SUPPORT" = "YES" ]; then
 		echo "Turning off vlan stripping"
-		ethtool -K $IFACE rxvlan off
+		sudo ethtool -K $IFACE rxvlan off
 	fi
 
 	# Disable EEE option is set in config file
 	if [ "$EEE_TURNOFF" = "YES" ]; then
 		echo "Turning off EEE"
-		ethtool --set-eee $IFACE eee off &> /dev/null
+		sudo ethtool --set-eee $IFACE eee off &> /dev/null
 	fi
 
 }
@@ -157,29 +157,29 @@ set_rule()
 	RULES31=$(ethtool -n $IFACE | grep "Filter: 31")
 	if [ ! -z "$RULES31" ]; then
 			echo "Deleting filter rule 31"
-			ethtool -N $IFACE delete 31
+			sudo ethtool -N $IFACE delete 31
 	fi
 	RULES30=$(ethtool -n $IFACE | grep "Filter: 30")
 	if [ ! -z "$RULES30" ]; then
 			echo "Deleting filter rule 30"
-			ethtool -N $IFACE delete 30
+			sudo ethtool -N $IFACE delete 30
 	fi
 	RULES29=$(ethtool -n $IFACE | grep "Filter: 29")
 	if [ ! -z "$RULES29" ]; then
 			echo "Deleting filter rule 29"
-			ethtool -N $IFACE delete 29
+			sudo ethtool -N $IFACE delete 29
 	fi
 
 	# Use flow-type to push ptp packet to $PTP_RX_Q
-        ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q
-        echo "Adding flow-type for ptp packet to q-$PTP_RX_Q"
+    sudo ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q
+    echo "Adding flow-type for ptp packet to q-$PTP_RX_Q"
 
 	# Use flow-type to push DPDK reference app packet packet to $RX_PKT_Q
-	ethtool -N $IFACE flow-type ether vlan 24576 vlan-mask 0x1FFF action $RX_PKT_Q
+	sudo ethtool -N $IFACE flow-type ether vlan 24576 vlan-mask 0x1FFF action $RX_PKT_Q
 	echo "Adding flow-type for DPDK reference app with VLAN packet to q-$RX_PKT_Q"
 
 	# Use flow-type to push DPDK reference app with standard IEEE802.3 packet to 0
-	ethtool -N $IFACE flow-type ether proto 0x0800 queue 0
+	sudo ethtool -N $IFACE flow-type ether proto 0x0800 queue 0
 	echo "Adding flow-type for DPDK reference app with standard IEEE802.3 packet to q-0"
 }
 
