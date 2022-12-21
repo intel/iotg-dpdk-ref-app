@@ -416,7 +416,7 @@ l2fwd_main_loop(void)
                                    if (is_debug==0){                                     
                                      fflush(stdout);
                                      printf("\r                ");
-                                     printf("\rPacket received: %ld",iCnt);	
+                                     printf("\rPacket received: %d",iCnt);
                                    }
                                    timer_tsc = 0;
                                 }
