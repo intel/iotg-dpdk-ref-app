@@ -106,7 +106,7 @@ static struct rte_eth_dev_tx_buffer *tx_buffer[RTE_MAX_ETHPORTS];
 
 static struct rte_eth_conf port_conf = {
 	.rxmode = {
-		.split_hdr_size = 0,
+		.mq_mode = RTE_ETH_MQ_RX_NONE,
 	},
 	.txmode = {
 		.mq_mode = RTE_ETH_MQ_TX_NONE,
@@ -169,7 +169,9 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 {
 
 #define TALKER_PACKET_ETH_TYPE 2048
-
+        const char *reason;
+        if(rte_mbuf_check(m, 1, &reason) == -1)
+            return 1;
 
        struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
        char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
