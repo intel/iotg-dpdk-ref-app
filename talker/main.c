@@ -407,7 +407,7 @@ static void talker_main_loop(void)
                 unsigned dst_port = l2fwd_dst_ports[0];
 	        uint16_t nb_tx = rte_eth_tx_burst(dst_port,0,pkt,BURST_SIZE);
 
-                for(j=nb_tx;j<BURST_SIZE;j++)
+                for(j=0;j<BURST_SIZE;j++)
                       rte_pktmbuf_free(pkt[j]);
 
                 iCnt++;

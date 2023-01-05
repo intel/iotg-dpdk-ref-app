@@ -247,13 +247,13 @@ main()
             ./setup/clock-setup.sh $IFACE
 
             sleep 30 #Give some time for clock daemons to start.
-            msg=`tail -n 1 /var/log/ptp4l.log | grep -E '(master|role)'`
+            msg=`tail -n 1 /tmp/dpdk/ptp4l.log | grep -E '(master|role)'`
             if [[ ! -z $msg ]]; then
                 echo assume as master clock
                 break
             fi
 
-            msg=`tail -n 1 /var/log/ptp4l.log | awk '{ print $3 }'`
+            msg=`tail -n 1 /tmp/dpdk/ptp4l.log | awk '{ print $3 }'`
             re='^[0-9]+$'
             if  [[ $msg =~ $re ]]; then
                 if [ $msg -lt 100 ]; then
