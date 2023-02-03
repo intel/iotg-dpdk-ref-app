@@ -169,7 +169,12 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 {
 
 #define TALKER_PACKET_ETH_TYPE 2048
-
+        const char *reason;
+        if(rte_mbuf_check(m, 1, &reason) == -1)
+        {
+            iCnt++;
+            return 1;
+        }
 
        struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
        char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
@@ -1024,7 +1029,7 @@ main(int argc, char **argv)
    
          
 	nb_mbufs = RTE_MAX(nb_ports * (nb_rxd + nb_txd + MAX_PKT_BURST +
-		nb_lcores * MEMPOOL_CACHE_SIZE), 8192U);
+		nb_lcores * MEMPOOL_CACHE_SIZE), 32767U);
 
 	/* create the mbuf pool */
 	l2fwd_pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", nb_mbufs,
