@@ -120,11 +120,11 @@ static uint64_t timer_period = 5; /* default period is 5 seconds */
 
 /*  statistics struct */
 struct latency_stats {
-	int  median;
-	int  avg;
-        double stddev;
-	double jitter;
-        char pkt_type[20];
+    uint64_t median;
+    uint64_t avg;
+    double stddev;
+    double jitter;
+    char pkt_type[20];
 } ltc_stats;
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
@@ -262,7 +262,11 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
             printf ("\nAbnormal tx_tsp for %d, reset to 0",iCnt); 
             tx_tsp = 0;
         }        
-        uint64_t delta_val = now_tsp - tx_tsp;
+        uint64_t delta_val = 0;
+        if (now_tsp > tx_tsp)
+            delta_val = now_tsp - tx_tsp;
+        else
+            delta_val = tx_tsp - now_tsp;
 
         debug0("\ntx_tsp:%"PRIu64,tx_tsp);
         debug0("\nnw_tsp:%"PRIu64,now_tsp);
@@ -1204,8 +1208,8 @@ main(int argc, char **argv)
 
                printf("\nSummary Statistics\n------------------------------\n"
                	"Packet type: %s\n"
-	       	"Median of %d packets latency in nanoseconds  (ns):%d\n"
-	       	"Average of %d packets latency in nanoseconds (ns):%d\n"
+	       	"Median of %d packets latency in nanoseconds  (ns):%"PRIu64"\n"
+	       	"Average of %d packets latency in nanoseconds (ns):%"PRIu64"\n"
                 "Standard deviation of %d packets latency in nanoseconds (ns):%lf\n\n"
 	       	"Jitter of %d packets latency in nanoseconds (ns):%lf\n\n",
                 	 ltc_stats.pkt_type,
