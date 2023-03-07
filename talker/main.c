@@ -210,19 +210,8 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
         debug0("\nclock_gettime %"PRIu64
                ",idx %d", tx_tsp,++idx);
 
-        char b_tstamp[TIME_STAMP_MSG_SIZE]; 
-
-        int i_tmp = 0;
-        char *b_idx  = malloc(snprintf(NULL, 0, "%d", idx) + 1);  //char b_idx[10];     
-        if (b_idx)
-           i_tmp = sprintf(b_idx,"%d",idx);
-                
-        i_tmp  = sprintf(b_tstamp,"%"PRIu64
-                                      ",%d",tx_tsp,idx);
-
-        //original code 
-	struct Message obj;
-        rte_memcpy(obj.data, b_tstamp,TIME_STAMP_MSG_SIZE);
+        char b_tstamp[TIME_STAMP_MSG_SIZE] = {0}; 
+        sprintf(b_tstamp,"%"PRIu64",%d",tx_tsp,idx);
 
 	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
 	uint16_t ether_type = is_vlan==1? 0xb62c: rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);
@@ -242,7 +231,7 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 		rte_eth_macaddr_get(0, &eth_hdr->src_addr);
 		eth_hdr->ether_type = ether_type;
 		msg = (struct Message*) (rte_pktmbuf_mtod(pkt[i],char*) + sizeof(struct rte_ether_hdr));
-		*msg = obj;
+		rte_memcpy(msg->data, b_tstamp,TIME_STAMP_MSG_SIZE);
 		int pkt_size = sizeof(struct Message) + sizeof(struct rte_ether_hdr);
 		pkt[i]->data_len = pkt_size;
 		pkt[i]->pkt_len = pkt_size;
@@ -283,8 +272,6 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 
 
 	}
-        
-        free(b_idx);
 
         if (!eth_hdr) {
             printf ("ERR: eth_hdr is null on packet idx %d",idx);   
@@ -996,7 +983,7 @@ main(int argc, char **argv)
 
 	/* create the mbuf pool */
 	l2fwd_pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", nb_mbufs,
-		MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE,
+		0, RTE_MBUF_PRIV_ALIGN, RTE_MBUF_DEFAULT_BUF_SIZE,
 		rte_socket_id());
 	if (l2fwd_pktmbuf_pool == NULL)
 		rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");

@@ -154,20 +154,20 @@ setup_etf()
 
 set_rule()
 {
-	RULES31=$(ethtool -n $IFACE | grep "Filter: 31")
-	if [ ! -z "$RULES31" ]; then
-			echo "Deleting filter rule 31"
-			sudo ethtool -N $IFACE delete 31
+	RULES63=$(ethtool -n $IFACE | grep "Filter: 63")
+	if [ ! -z "$RULES63" ]; then
+			echo "Deleting filter rule 63"
+			sudo ethtool -N $IFACE delete 63
 	fi
-	RULES30=$(ethtool -n $IFACE | grep "Filter: 30")
-	if [ ! -z "$RULES30" ]; then
-			echo "Deleting filter rule 30"
-			sudo ethtool -N $IFACE delete 30
+	RULES62=$(ethtool -n $IFACE | grep "Filter: 62")
+	if [ ! -z "$RULES62" ]; then
+			echo "Deleting filter rule 62"
+			sudo ethtool -N $IFACE delete 62
 	fi
-	RULES29=$(ethtool -n $IFACE | grep "Filter: 29")
-	if [ ! -z "$RULES29" ]; then
-			echo "Deleting filter rule 29"
-			sudo ethtool -N $IFACE delete 29
+	RULES61=$(ethtool -n $IFACE | grep "Filter: 61")
+	if [ ! -z "$RULES61" ]; then
+			echo "Deleting filter rule 61"
+			sudo ethtool -N $IFACE delete 61
 	fi
 
 	# Use flow-type to push ptp packet to $PTP_RX_Q
