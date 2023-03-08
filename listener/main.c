@@ -169,12 +169,15 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 {
 
 #define TALKER_PACKET_ETH_TYPE 2048
-        const char *reason;
-        if(rte_mbuf_check(m, 1, &reason) == -1)
-        {
-            iCnt++;
-            return 1;
-        }
+
+       const char *reason;
+       if(rte_mbuf_check(m, 1, &reason) == -1 || rte_mbuf_check(m, 0, &reason) == -1)
+       {
+           printf("%s :\n", reason);
+           rte_pktmbuf_dump(stdout, m, 0);
+           fflush(stdout);
+           return 0;
+       }
 
        struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
        char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
@@ -441,8 +444,7 @@ l2fwd_main_loop(void)
 
 
 			portid = qconf->rx_port_list[i];
-			nb_rx = rte_eth_rx_burst(portid, 0,
-						 pkts_burst,MAX_PKT_BURST);
+			nb_rx = rte_eth_rx_burst(portid, 0, pkts_burst,MAX_PKT_BURST);
 
                         int datalen = 0,nb_tx=0,to_local=0;
 
@@ -450,11 +452,10 @@ l2fwd_main_loop(void)
 
 				m = pkts_burst[j];
                                 datalen = rte_pktmbuf_pkt_len(m);
-                                to_local = extract_l2packet(m,j+1,nb_rx,fp,lcore_id);
-			        nb_tx  = l2fwd_simple_forward(m, portid,to_local);
+			                    to_local = extract_l2packet(m, j+1, nb_rx, fp, lcore_id);
 			}
 
-
+            rte_pktmbuf_free_bulk(pkts_burst, nb_rx);
 		}
 
                 usleep(2);
