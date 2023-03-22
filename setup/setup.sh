@@ -111,7 +111,7 @@ setup_taprio()
 	NUM_TC=$(expr $NUM_TC + 1)
 
 	# i225 does not support basetime in the future
-	if [[ $PLAT == i225* ]]; then
+	if [[ $PLAT == "i225" || $PLAT == "i226" || $PLAT == "igc" ]]; then
 		BASE=$(date +%s%N)
 	else
 		BASE=$(expr $(date +%s) + 5)000000000
@@ -171,16 +171,16 @@ set_rule()
 	fi
 
 	# Use flow-type to push ptp packet to $PTP_RX_Q
-        ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q
-        echo "Adding flow-type for ptp packet to q-$PTP_RX_Q"
+	ethtool -N $IFACE flow-type ether proto 0x88f7 queue $PTP_RX_Q
+	echo "Adding flow-type for ptp packet to q-$PTP_RX_Q"
 
 	# Use flow-type to push DPDK reference app packet packet to $RX_PKT_Q
 	ethtool -N $IFACE flow-type ether vlan 24576 vlan-mask 0x1FFF action $RX_PKT_Q
 	echo "Adding flow-type for DPDK reference app with VLAN packet to q-$RX_PKT_Q"
 
-	# Use flow-type to push DPDK reference app with standard IEEE802.3 packet to 0
-	ethtool -N $IFACE flow-type ether proto 0x0800 queue 0
-	echo "Adding flow-type for DPDK reference app with standard IEEE802.3 packet to q-0"
+	# Use flow-type to push DPDK reference app with standard IEEE802.3 packet to 3
+	ethtool -N $IFACE flow-type ether proto 0x0800 queue 3
+	echo "Adding flow-type for DPDK reference app with standard IEEE802.3 packet to q-3"
 }
 
 usage()
@@ -227,16 +227,16 @@ main()
         init_interface $IFACE
 
 	if [[ $MODE == "listener" ]]; then
-		if [[ "$BOARD" == "icx" ]]; then
+		if [[ $BOARD == "icx" || $BOARD == "adl" || $BOARD == "rpl" ]]; then
 			setup_mqprio $IFACE
 		fi
 
 	elif [[ $MODE == "talker" ]]; then
-		if [[ $BOARD == "icx" ]]; then
+		if [[ $BOARD == "icx" || $BOARD == "adl" || $BOARD == "rpl" ]]; then
 			setup_taprio $IFACE
 			setup_etf $IFACE
 		fi
-        fi
+	fi
 
 	set_rule $IFACE
 

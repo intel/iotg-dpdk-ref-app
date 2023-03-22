@@ -268,8 +268,6 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
         uint64_t delta_val = 0;
         if (now_tsp > tx_tsp)
             delta_val = now_tsp - tx_tsp;
-        else
-            delta_val = tx_tsp - now_tsp;
 
         debug0("\ntx_tsp:%"PRIu64,tx_tsp);
         debug0("\nnw_tsp:%"PRIu64,now_tsp);
