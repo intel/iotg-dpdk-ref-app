@@ -180,17 +180,17 @@ main() {
             done
 	    if [ "$MODE" = "single" ]; then
                 OUTPUTFILE1=af-xdp-single-$OUTPUTFILE1
-                sudo ./listener/build/listener -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=3 -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG
+                sudo ./listener/build/listener -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG
 	    elif [ "$MODE" = "dual" ]; then
                 OUTPUTFILE1=af-xdp-dual-$OUTPUTFILE1
                 OUTPUTFILE2=af-xdp-dual-$OUTPUTFILE2
                 sudo ./listener/build/listener -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="listener1" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG &
                 sudo ./listener/build/listener -l 3 -n 1 --vdev=net_af_xdp1,iface=$IFACE,start_queue=3 --file-prefix="listener2" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE2 -D $DEBUG
             elif [ "$MODE" = "mix" ]; then
-                OUTPUTFILE1=af-packet-mix-$OUTPUTFILE1
-                OUTPUTFILE2=af-xdp-mix-$OUTPUTFILE2
-                sudo ./listener/build/listener -l 2 -n 1 --vdev=net_af_packet0,iface=$IFACE --file-prefix="listener1" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG &
-                sudo ./listener/build/listener -l 3 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=3 --file-prefix="listener2" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE2 -D $DEBUG
+                OUTPUTFILE1=af-xdp-mix-$OUTPUTFILE1
+                OUTPUTFILE2=af-packet-mix-$OUTPUTFILE2
+                sudo ./listener/build/listener -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="listener1" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG &
+                sudo ./listener/build/listener -l 3 -n 1 --vdev=net_af_packet0,iface=$IFACE --file-prefix="listener2" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE2 -D $DEBUG
 	    fi
         elif [ "$APP_COMPONENT" = "talker" ]; then
             while [ ! -z "$7" ]; do
@@ -228,13 +228,13 @@ main() {
                 shift
             done
 	    if [ "$MODE" = "single" ]; then
-                sudo ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=3 -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1
+                sudo ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1
             elif [ "$MODE" = "dual" ]; then
                 sudo ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="talker1" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 0 &
                 sudo ./talker/build/talker -l 3 -n 1 --vdev=net_af_xdp1,iface=$IFACE,start_queue=3 --file-prefix="talker2" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1
             elif [ "$MODE" = "mix" ]; then
-                sudo ./talker/build/talker -l 2 -n 1 --vdev=net_af_packet0,iface=$IFACE --file-prefix="talker1" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 0 &
-                sudo ./talker/build/talker -l 3 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=3 --file-prefix="talker2" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1
+                sudo ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="talker1" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 0 &
+                sudo ./talker/build/talker -l 3 -n 1 --vdev=net_af_packet0,iface=$IFACE            --file-prefix="talker2" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1
             else
                 echo -e "Run.sh invalid <MODE>:"
 	    fi

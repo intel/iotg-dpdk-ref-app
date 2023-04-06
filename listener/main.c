@@ -263,8 +263,10 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
         if (tx_tsp<0 || tx_tsp> UINT64_MAX) {
             printf ("\nAbnormal tx_tsp for %d, reset to 0",iCnt); 
             tx_tsp = 0;
-        }        
-        uint64_t delta_val = now_tsp - tx_tsp;
+        }
+        uint64_t delta_val = 0;
+        if (now_tsp > tx_tsp)
+            delta_val = now_tsp - tx_tsp;
 
         debug0("\ntx_tsp:%"PRIu64,tx_tsp);
         debug0("\nnw_tsp:%"PRIu64,now_tsp);
@@ -1033,7 +1035,7 @@ main(int argc, char **argv)
 
 	/* create the mbuf pool */
 	l2fwd_pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", nb_mbufs,
-		0, RTE_MBUF_PRIV_ALIGN, RTE_MBUF_DEFAULT_BUF_SIZE,
+		MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE,
 		rte_socket_id());
 	if (l2fwd_pktmbuf_pool == NULL)
 		rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
