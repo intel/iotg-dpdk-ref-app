@@ -25,6 +25,8 @@ rm /usr/lib/x86_64-linux-gnu/pkgconfig/libbpf.pc
 mv root/usr/include/bpf /usr/include/.
 mv root/usr/lib64/libbpf.* /usr/lib/x86_64-linux-gnu/.
 mv root/usr/lib64/pkgconfig/libbpf.pc /usr/lib/x86_64-linux-gnu/pkgconfig/.
+cd /usr/lib/x86_64-linux-gnu/
+ln -sf libbpf.so.${LIBBPF_VERSION} libbpf.so.9999
 ldconfig
 
 # Download and build libxdp
