@@ -936,7 +936,6 @@ main(int argc, char **argv)
 	argv += ret;
 
 	force_quit = false;
-	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
 
 	/* parse application arguments (after the EAL ones) */

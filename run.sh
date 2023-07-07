@@ -55,24 +55,27 @@ show_usage (){
 return 0
 }
 
-# trap ctrl+c and call generate_plot()
-trap generate_plot INT
-function generate_plot()
-{
+terminate_app() {
+    echo "Terminating child processes"
+    pkill -P $$
+    wait
+    echo "Child processes exited"
     if [ $APP_COMPONENT = "listener" ]; then
         for outfile in $OUTPUTFILE1 $OUTPUTFILE2; do
             if [ -f $outfile ]; then
                 plot=${outfile%.csv}.png
-	        echo "Generate plot for $outfile -> $plot"
+                echo "Generate plot for $outfile -> $plot"
                 gnuplot -e "set output '$plot'; FILENAME='$outfile'" $SETUP_DIR/plot-latency.gnu -p
                 echo Results stored in $dt/$outfile
                 mv $outfile $dt/
                 mv $plot $dt/
             fi
-	done
+        done
     fi
     echo Exit app
+    exit 0
 }
+trap terminate_app SIGINT SIGTERM
 
 main() {
     # Check for minimum inputs
@@ -172,26 +175,27 @@ main() {
                         ;;
                     *)
                         show_usage
-			shift
+                        shift
                         exit 1;
                         ;;
                 esac
                 shift
             done
-	    if [ "$MODE" = "single" ]; then
+            if [ "$MODE" = "single" ]; then
                 OUTPUTFILE1=af-xdp-single-$OUTPUTFILE1
-                sudo ./listener/build/listener -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG
-	    elif [ "$MODE" = "dual" ]; then
+                ./listener/build/listener -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG &
+            elif [ "$MODE" = "dual" ]; then
                 OUTPUTFILE1=af-xdp-dual-$OUTPUTFILE1
                 OUTPUTFILE2=af-xdp-dual-$OUTPUTFILE2
-                sudo ./listener/build/listener -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="listener1" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG &
-                sudo ./listener/build/listener -l 3 -n 1 --vdev=net_af_xdp1,iface=$IFACE,start_queue=3 --file-prefix="listener2" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE2 -D $DEBUG
+                ./listener/build/listener -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="listener1" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG &
+                ./listener/build/listener -l 3 -n 1 --vdev=net_af_xdp1,iface=$IFACE,start_queue=3 --file-prefix="listener2" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE2 -D $DEBUG &
             elif [ "$MODE" = "mix" ]; then
                 OUTPUTFILE1=af-xdp-mix-$OUTPUTFILE1
                 OUTPUTFILE2=af-packet-mix-$OUTPUTFILE2
-                sudo ./listener/build/listener -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="listener1" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG &
-                sudo ./listener/build/listener -l 3 -n 1 --vdev=net_af_packet0,iface=$IFACE --file-prefix="listener2" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE2 -D $DEBUG
-	    fi
+                ./listener/build/listener -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="listener1" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE1 -D $DEBUG &
+                ./listener/build/listener -l 3 -n 1 --vdev=net_af_packet0,iface=$IFACE            --file-prefix="listener2" -- -p $PORTMASK -q $LCOREQ -f $OUTPUTFILE2 -D $DEBUG &
+            fi
+            wait
         elif [ "$APP_COMPONENT" = "talker" ]; then
             while [ ! -z "$7" ]; do
                 case "$7" in
@@ -221,23 +225,22 @@ main() {
                         ;;
                     *)
                         show_usage
-			shift
+                        shift
                         exit 1;
                         ;;
                 esac
                 shift
             done
-	    if [ "$MODE" = "single" ]; then
-                sudo ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1
+            if [ "$MODE" = "single" ]; then
+                ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1 &
             elif [ "$MODE" = "dual" ]; then
-                sudo ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="talker1" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 0 &
-                sudo ./talker/build/talker -l 3 -n 1 --vdev=net_af_xdp1,iface=$IFACE,start_queue=3 --file-prefix="talker2" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1
+                ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="talker1" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 0 &
+                ./talker/build/talker -l 3 -n 1 --vdev=net_af_xdp1,iface=$IFACE,start_queue=3 --file-prefix="talker2" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1 &
             elif [ "$MODE" = "mix" ]; then
-                sudo ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="talker1" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 0 &
-                sudo ./talker/build/talker -l 3 -n 1 --vdev=net_af_packet0,iface=$IFACE            --file-prefix="talker2" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1
-            else
-                echo -e "Run.sh invalid <MODE>:"
-	    fi
+                ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="talker1" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 0 &
+                ./talker/build/talker -l 3 -n 1 --vdev=net_af_packet0,iface=$IFACE            --file-prefix="talker2" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1 &
+            fi
+            wait
         else
             show_usage
             exit 1
