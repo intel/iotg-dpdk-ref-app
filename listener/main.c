@@ -169,32 +169,31 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
 {
 #define TALKER_PACKET_ETH_TYPE 2048
 
-       const char *reason;
-       if(rte_mbuf_check(m, 1, &reason) == -1 || rte_mbuf_check(m, 0, &reason) == -1)
-       {
-           printf("%s :\n", reason);
-           rte_pktmbuf_dump(stdout, m, 0);
-           fflush(stdout);
-           return 0;
-       }
-
-       struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
-       char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
-       int datalen = rte_pktmbuf_pkt_len(m);  
-       struct rte_ether_addr src01 =  eth_hdr->src_addr;
-       struct rte_ether_addr dst01 =  eth_hdr->dst_addr;
-
-       //ignore packet content processing not to local machine
-       if (l2fwd_ports_eth_addr[0].addr_bytes[0] != dst01.addr_bytes[0] ||
-           l2fwd_ports_eth_addr[0].addr_bytes[1] != dst01.addr_bytes[1] ||
-           l2fwd_ports_eth_addr[0].addr_bytes[2] != dst01.addr_bytes[2] ||
-           l2fwd_ports_eth_addr[0].addr_bytes[3] != dst01.addr_bytes[3] ||
-           l2fwd_ports_eth_addr[0].addr_bytes[4] != dst01.addr_bytes[4] ||
-           l2fwd_ports_eth_addr[0].addr_bytes[5] != dst01.addr_bytes[5]
-          ){
+        const char *reason;
+        if(rte_mbuf_check(m, 1, &reason) == -1 || rte_mbuf_check(m, 0, &reason) == -1)
+        {
+            printf("%s :\n", reason);
+            rte_pktmbuf_dump(stdout, m, 0);
+            fflush(stdout);
             return 0;
- 
-       }
+        }
+
+        struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
+        char* msg = ((rte_pktmbuf_mtod(m,char*)) + sizeof(struct rte_ether_hdr)); //maybe wrong
+        int datalen = rte_pktmbuf_pkt_len(m);  
+        struct rte_ether_addr src01 =  eth_hdr->src_addr;
+        struct rte_ether_addr dst01 =  eth_hdr->dst_addr;
+
+        //ignore packet content processing not to local machine
+        if (l2fwd_ports_eth_addr[0].addr_bytes[0] != dst01.addr_bytes[0] ||
+            l2fwd_ports_eth_addr[0].addr_bytes[1] != dst01.addr_bytes[1] ||
+            l2fwd_ports_eth_addr[0].addr_bytes[2] != dst01.addr_bytes[2] ||
+            l2fwd_ports_eth_addr[0].addr_bytes[3] != dst01.addr_bytes[3] ||
+            l2fwd_ports_eth_addr[0].addr_bytes[4] != dst01.addr_bytes[4] ||
+            l2fwd_ports_eth_addr[0].addr_bytes[5] != dst01.addr_bytes[5] )
+        {
+            return 0;
+        }
 
         char pkt_std[] = "IEEE802.3 Standard";
         char pkt_vlan[] = "IEEE802.1q VLAN";
@@ -209,7 +208,7 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
         //fprintf (stdout,"\n------------------------------------------");
         debug0("\n------------------------------------------");
         debug0("\nbatch: %d of %d",rx_batch_idx,rx_batch_ttl);
-        debug0("\nether_type=%"PRIu64,eth_hdr->ether_type);
+        debug0("\nether_type=%"PRIu16,eth_hdr->ether_type);
         debug0("\nPayload Data Size=%d",datalen);
 
         debug0("\nSOURCE MAC address: %02X:%02X:%02X:%02X:%02X:%02X",
@@ -229,15 +228,15 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
                                 dst01.addr_bytes[5]);
 
 
-         fprintf(fp,"%d,%d,", eth_hdr->ether_type,datalen);
-         fprintf(fp,"%02X:%02X:%02X:%02X:%02X:%02X,",
+        fprintf(fp,"%d,%d,", eth_hdr->ether_type,datalen);
+        fprintf(fp,"%02X:%02X:%02X:%02X:%02X:%02X,",
                                 src01.addr_bytes[0],
                                 src01.addr_bytes[1],
                                 src01.addr_bytes[2],
                                 src01.addr_bytes[3],
                                 src01.addr_bytes[4],
                                 src01.addr_bytes[5]);
-         fprintf(fp,"%02X:%02X:%02X:%02X:%02X:%02X,",
+        fprintf(fp,"%02X:%02X:%02X:%02X:%02X:%02X,",
                                 dst01.addr_bytes[0],
                                 dst01.addr_bytes[1],
                                 dst01.addr_bytes[2],
@@ -250,17 +249,17 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
         int i=0,j=0;
         int i_start_idx = eth_hdr->ether_type==129 ? 4: 0;
         for(j=i_start_idx,i=0;j<24;j++,i++){
-          if (i>=0 && i < sizeof(b_tx_tsp)/sizeof(b_tx_tsp[0]))  
-              b_tx_tsp[i] = msg[j];
+            if (i>=0 && i < sizeof(b_tx_tsp)/sizeof(b_tx_tsp[0]))  
+                b_tx_tsp[i] = msg[j];
         }
 
         fprintf(fp,"%d,", 0);
         
-	uint64_t now_tsp  = get_time_nanosec(CLOCK_REALTIME);
+        uint64_t now_tsp  = get_time_nanosec(CLOCK_REALTIME);
 
         uint64_t tx_tsp;
         sscanf(b_tx_tsp, "%"PRIu64, &tx_tsp);        
-        if (tx_tsp<0 || tx_tsp> UINT64_MAX) {
+        if (tx_tsp > UINT64_MAX) {
             printf ("\nAbnormal tx_tsp for %d, reset to 0",iCnt); 
             tx_tsp = 0;
         }
@@ -277,31 +276,25 @@ static int  extract_l2packet(struct rte_mbuf *m, int rx_batch_idx, int rx_batch_
         pCnt++;
         fprintf(fp,",%d\n", pCnt);
 
-
-
         for (j=0; j <100; j++)
         {
             //if (isdigit(msg[j]))
                 debug0("%c",msg[j]);
-
         }
 
         debug0("\n");
 
-
-        if (delta_val>=0 && delta_val< INT_MAX) //sanity check 
-             a_latency[iCnt] = delta_val;     
-        
+        if (delta_val < INT_MAX) {
+            a_latency[iCnt] = delta_val;     
+		}
         else {
-          a_latency[iCnt] = -1; //error
-          debug0 ("\nERR IDX=%d LATENCY:%d", iCnt,delta_val);
+            a_latency[iCnt] = -1; //error
+            debug0 ("\nERR IDX=%d LATENCY:%"PRIu64, iCnt, delta_val);
         }
-
 
         iCnt++;        
         
         return 1;
-
 }
 
 
@@ -318,54 +311,9 @@ static long diff_us(struct timespec t1, struct timespec t2)
     return (diff.tv_sec * 1000000.0 + diff.tv_nsec / 1000.0);
 }
 
-
-
-
-static void
-l2fwd_mac_updating(struct rte_mbuf *m, unsigned dest_portid)
-{
-	struct rte_ether_hdr *eth;
-	void *tmp;
-
-	eth = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
-
-	/* 02:00:00:00:00:xx */
-	tmp = &eth->dst_addr.addr_bytes[0];
-	*((uint64_t *)tmp) = 0x000000000002 + ((uint64_t)dest_portid << 40);
-
-	/* src addr */
-	rte_ether_addr_copy(&l2fwd_ports_eth_addr[dest_portid], &eth->src_addr);
-}
-
-static int
-l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid, unsigned to_local)
-{
-	unsigned dst_port;
-	int sent;
-	struct rte_eth_dev_tx_buffer *buffer;
-
-
-	if (to_local >0){
-   	    rte_pktmbuf_free(m);
-            return 0;
-        }
-
-	dst_port = l2fwd_dst_ports[portid];
-
-        if (mac_updating){
-	    l2fwd_mac_updating(m, dst_port);
-        }
-
-	buffer = tx_buffer[dst_port];
- 
-        sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
-
-        return sent;
-}
-
 int sort_compare (const void * a, const void * b)
 {
-  return ( *(int*)a - *(int*)b );
+	return ( *(int*)a - *(int*)b );
 }
 
 /* main processing loop */
@@ -383,7 +331,6 @@ l2fwd_main_loop(void)
 			BURST_TX_DRAIN_US;
 	struct rte_eth_dev_tx_buffer *buffer;
 
-	
 	prev_tsc = 0;
 	timer_tsc = 0;
 
@@ -398,136 +345,116 @@ l2fwd_main_loop(void)
 	RTE_LOG(INFO, L2FWD, "entering main loop on lcore %u\n", lcore_id);
 
 	for (i = 0; i < qconf->n_rx_port; i++) {
-
 		portid = qconf->rx_port_list[i];
 		RTE_LOG(INFO, L2FWD, " -- lcoreid=%u portid=%u\n", lcore_id,
 			portid);
-
 	}
- 
-        int i_clean = 0;
-               
-        FILE* fp = fopen(output_file,"w");        
-	if (!fp)	
-		rte_exit(EXIT_FAILURE, "Cannot open output_file:%s\n", output_file);	
-        
-	while (!force_quit) {
 
-                //this is a timer control mechanism to refresh screen under non-debug mode
-                //arbitrary run printf in every cycle will caused intermitently hang                
-                cur_tsc = rte_rdtsc();
-                diff_tsc = cur_tsc - prev_tsc;
-                if (unlikely(diff_tsc > drain_tsc)) {
-                    if (timer_period > 0) {
-                        timer_tsc += diff_tsc;
-                        if (unlikely(timer_tsc >= timer_period)) {
-                                if (lcore_id == rte_get_main_lcore()) {
-                                   if (is_debug==0){                                     
-                                     fflush(stdout);
-                                     printf("\r                ");
-                                     printf("\rPacket received: %d",iCnt);
-                                   }
-                                   timer_tsc = 0;
-                                }
-                        }
-                    }
-                    prev_tsc = cur_tsc;
-                }                
+	int i_clean = 0;
+
+	FILE* fp = fopen(output_file,"w");        
+	if (!fp)
+		rte_exit(EXIT_FAILURE, "Cannot open output_file:%s\n", output_file);	
+
+	while (!force_quit) {
+		//this is a timer control mechanism to refresh screen under non-debug mode
+		//arbitrary run printf in every cycle will caused intermitently hang
+		cur_tsc = rte_rdtsc();
+		diff_tsc = cur_tsc - prev_tsc;
+		if (unlikely(diff_tsc > drain_tsc)) {
+			if (timer_period > 0) {
+				timer_tsc += diff_tsc;
+				if (unlikely(timer_tsc >= timer_period)) {
+					if (lcore_id == rte_get_main_lcore()) {
+						if (is_debug==0) {
+							fflush(stdout);
+							printf("\r                ");
+							printf("\rPacket received: %d",iCnt);
+						}
+						timer_tsc = 0;
+					}
+				}
+			}
+			prev_tsc = cur_tsc;
+		}
 		
 		/*
 		 * Read packet from RX queues
 		 */
 		for (i = 0; i < qconf->n_rx_port; i++) {
-
-
 			portid = qconf->rx_port_list[i];
 			nb_rx = rte_eth_rx_burst(portid, 0, pkts_burst,MAX_PKT_BURST);
 
-                        int datalen = 0,nb_tx=0,to_local=0;
+			int datalen = 0,nb_tx=0,to_local=0;
 
 			for (j = 0; j < nb_rx; j++) {
-
 				m = pkts_burst[j];
-                                datalen = rte_pktmbuf_pkt_len(m);
-                                to_local = extract_l2packet(m, j+1, nb_rx, fp, lcore_id);
+				datalen = rte_pktmbuf_pkt_len(m);
+				to_local = extract_l2packet(m, j+1, nb_rx, fp, lcore_id);
 			}
 
-            rte_pktmbuf_free_bulk(pkts_burst, nb_rx);
+			rte_pktmbuf_free_bulk(pkts_burst, nb_rx);
 		}
-
-                usleep(2);
-
+		usleep(2);
 	}
 
-        fclose(fp);
+	fclose(fp);
 
-        if (iCnt>2){
- 
-            uint64_t sum=0,avg=0;
-            int iActualCnt=0, iStartCnt=0;
+	if (iCnt > 2) {
+		uint64_t sum=0,avg=0;
+		int iActualCnt=0, iStartCnt=0;
 
-            //ignore first 10 percent data as yet stablized  
-            if(iCnt>100){
-               iStartCnt = iCnt * 0.1;
-            }
-            for (int i=iStartCnt;i<iCnt;i++){
-               if (a_latency[i]>=0 && sum < FLT_MAX){
-                 sum += (a_latency[i]/1000); //normalized the latency to avoid big number overflow
-                 iActualCnt++;
-               }
+		//ignore first 10 percent data as yet stablized  
+		if(iCnt > 100) {
+			iStartCnt = iCnt * 0.1;
+		}
+		for (int i=iStartCnt;i<iCnt;i++) {
+			if (sum < FLT_MAX) {
+				sum += (a_latency[i]/1000); //normalized the latency to avoid big number overflow
+				iActualCnt++;
+			}
+			if (sum>FLT_MAX-1) {
+				break;
+			}
+		}
 
-               if (sum>FLT_MAX-1){
-                         break;
-               } 
-            }
+		if (iActualCnt)
+			ltc_stats.avg = sum/iActualCnt*1000;
 
-	    if (iActualCnt)
-                ltc_stats.avg = sum/iActualCnt*1000;
+		//standard deviation 
+		long stdsum  = 0, variance=0;
+		int  iTmp=0;
+		double stddev = 0;
+		iActualCnt = 0; 
+		for (int i=iStartCnt;i<iCnt;i++) {
+			iTmp =  (a_latency[i]/1000); //normalized the latency to avoid big number overflow
+			stdsum += pow(iTmp,1);
+			iActualCnt++;
+		}
+		if (iActualCnt)
+			variance = stdsum / iActualCnt;
+		if (variance >0)stddev = sqrt(variance) * 1000;
+			ltc_stats.stddev = stddev;
 
+		//get median, this need to at last step else the order of data will be sorted to value
+		qsort (a_latency, iCnt, sizeof(uint64_t), sort_compare);
+		ltc_stats.median = a_latency[iCnt/2];
 
-            //standard deviation 
-            long stdsum  = 0, variance=0;
-            int  iTmp=0;
-            double stddev = 0;
-            iActualCnt = 0; 
-            for (int i=iStartCnt;i<iCnt;i++){
-               if (a_latency[i]>=0 && stdsum <= LLONG_MAX){
-                 iTmp =  (a_latency[i]/1000); //normalized the latency to avoid big number overflow 
-                 stdsum += pow(iTmp,1);
-                 iActualCnt++;
-               }
-               if (stdsum>=LLONG_MAX) break;
-            }
-	    if (iActualCnt)
-                variance = stdsum / iActualCnt;
-            if (variance >0)stddev = sqrt(variance) * 1000;
-            ltc_stats.stddev = stddev;
-
-            //get median, this need to at last step else the order of data will be sorted to value
-            qsort (a_latency, iCnt, sizeof(uint64_t), sort_compare);
-            ltc_stats.median = a_latency[iCnt/2];
-
-
-	    //Jitter Calculation
-	    long latency_diff, sumOfDiff = 0;
-	    int diffCnt = 0;
-	    for (int i=iStartCnt;i<iCnt;i++){
-               if (a_latency[i] > a_latency[i+1])
-                  latency_diff = a_latency[i]-a_latency[i+1];
-	       else
-                  latency_diff = a_latency[i+1]-a_latency[i];
-	       sumOfDiff += latency_diff;
-	       diffCnt++;
-	    }
-	    if (diffCnt)
-	       ltc_stats.jitter = sumOfDiff/diffCnt;
-
-
-        }
-
+		//Jitter Calculation
+		long latency_diff, sumOfDiff = 0;
+		int diffCnt = 0;
+		for (int i=iStartCnt;i<iCnt;i++) {
+			if (a_latency[i] > a_latency[i+1])
+				latency_diff = a_latency[i]-a_latency[i+1];
+			else
+				latency_diff = a_latency[i+1]-a_latency[i];
+			sumOfDiff += latency_diff;
+			diffCnt++;
+		}
+		if (diffCnt)
+			ltc_stats.jitter = sumOfDiff/diffCnt;
+	}
 }
-
-
 
 static int
 l2fwd_launch_one_lcore(__rte_unused void *dummy)
@@ -660,28 +587,24 @@ l2fwd_parse_timer_period(const char *q_arg)
 static int
 l2fwd_parse_output_file(const char *q_arg)
 {
-	
 	if (strlen(q_arg) > 0 && strlen(q_arg) <=  sizeof(output_file)/sizeof(output_file[0]))
-        {
-		strlcpy(output_file, q_arg,sizeof(output_file));                
+	{
+		strlcpy(output_file, q_arg,sizeof(output_file));
 		return 1;
-        }
+	}
 	else
-	{              
+	{
 		return 0;
 	}
 }
 
-
-static int
+static void
 l2fwd_parse_debug(const char *q_arg)
 {
 	if (*q_arg == '1')
-             is_debug = 1;
+		is_debug = 1;
 	else
-	     is_debug = 0;
-
-        return 1;
+		is_debug = 0;
 }
 
 static const char short_options[] =
@@ -761,22 +684,20 @@ l2fwd_parse_args(int argc, char **argv)
 
 		/* Output File */
 		case 'f':
-			ret = l2fwd_parse_output_file(optarg);
-			if (ret = 0) {
+			if (l2fwd_parse_output_file(optarg) == 0) {
 				printf("Output file Name is too long\n");
 				l2fwd_usage(prgname);
 				return -1;
 			}
 			break;
 
-                case 'D':
-                        ret = l2fwd_parse_debug(optarg);
+		case 'D':
+			l2fwd_parse_debug(optarg);
 			break;
 
 		/* long options */
 		case CMD_LINE_OPT_PORTMAP_NUM:
-			ret = l2fwd_parse_port_pair_config(optarg);
-			if (ret) {
+			if (l2fwd_parse_port_pair_config(optarg)) {
 				fprintf(stderr, "Invalid config\n");
 				l2fwd_usage(prgname);
 				return -1;
