@@ -131,57 +131,20 @@ static int is_debug =1;
 /*packet type*/
 static int is_vlan = 1;
 
-static void debug0(const char* format,...){
-
-  if (is_debug==0) return;
-
-  char buffer[5000];
-  va_list args;
-  va_start (args, format);
-  vsnprintf (buffer, 999, format, args);
-  printf ("%s",buffer);
-  va_end(args);
-
-}
-
-
-static void
-l2fwd_mac_updating(struct rte_mbuf *m, unsigned dest_portid)
+static void debug0(const char* format,...)
 {
-	struct rte_ether_hdr *eth;
-	void *tmp;
+    if (is_debug==0) return;
 
-	eth = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
-
-	/* 02:00:00:00:00:xx */
-	tmp = &eth->dst_addr.addr_bytes[0];
-	*((uint64_t *)tmp) = 0x000000000002 + ((uint64_t)dest_portid << 40);
-
-	/* src addr */
-	rte_ether_addr_copy(&l2fwd_ports_eth_addr[dest_portid], &eth->src_addr);
-}
-
-static void
-l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
-{
-	unsigned dst_port;
-	int sent;
-	struct rte_eth_dev_tx_buffer *buffer;
-
-	dst_port = l2fwd_dst_ports[portid];
-
-	if (mac_updating)
-		l2fwd_mac_updating(m, dst_port);
-
-	buffer = tx_buffer[dst_port];
-        sent = rte_eth_tx_buffer(dst_port, 0, buffer, m);
-	//sent = rte_eth_tx_burst(dst_port, 0, m,1);
-
+    char buffer[5000];
+    va_list args;
+    va_start (args, format);
+    vsnprintf (buffer, 999, format, args);
+    printf ("%s",buffer);
+    va_end(args);
 }
 
 static uint64_t get_time_nanosec(clockid_t clkid)
 {
-
 	struct timespec now;
 	clock_gettime(clkid, &now);
 	return now.tv_sec * NSEC_PER_SEC + now.tv_nsec;
@@ -189,11 +152,9 @@ static uint64_t get_time_nanosec(clockid_t clkid)
 
 static uint64_t get_time_nanosec_hwtsp(int port)
 {
-
 	uint64_t ticks;
 	rte_eth_read_clock(port, &ticks);
 	return ticks;
-
 }
 
 static int idx = 0;
@@ -201,29 +162,29 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 {
 #define VLAN_ID 3
 
-        struct Message {
-		char data[TIME_STAMP_MSG_SIZE]; 
+	struct Message {
+		char data[TIME_STAMP_MSG_SIZE];
 	};
 
-        uint64_t tx_tsp  = get_time_nanosec(CLOCK_REALTIME); 
+	uint64_t tx_tsp  = get_time_nanosec(CLOCK_REALTIME);
 
-        debug0("\nclock_gettime %"PRIu64
-               ",idx %d", tx_tsp,++idx);
+	debug0("\nclock_gettime %"PRIu64",idx %d", tx_tsp, ++idx);
 
-        char b_tstamp[TIME_STAMP_MSG_SIZE] = {0}; 
-        sprintf(b_tstamp,"%"PRIu64",%d",tx_tsp,idx);
+	char b_tstamp[TIME_STAMP_MSG_SIZE] = {0};
+	sprintf(b_tstamp,"%"PRIu64",%d",tx_tsp,idx);
 
 	struct rte_ether_addr d_addr = {{dst_mac_addr[0],dst_mac_addr[1],dst_mac_addr[2],dst_mac_addr[3],dst_mac_addr[4],dst_mac_addr[5]}};
 	uint16_t ether_type = is_vlan==1? 0xb62c: rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);
-        
-        debug0("\nether_type=%"PRIu64,ether_type);
 
-        int BURST_SIZE = pkt_size;
-        struct rte_mbuf *m = NULL;
+	debug0("\nether_type=%"PRIu16, ether_type);
+
+	int BURST_SIZE = pkt_size;
+	struct rte_mbuf *m = NULL;
 	int i = 0;
 	struct rte_ether_hdr *eth_hdr = NULL;
 	struct Message *msg = NULL;
-	for(i=0;i<BURST_SIZE;i++) {
+	for(i=0;i<BURST_SIZE;i++)
+	{
 		pkt[i] = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
 		eth_hdr = rte_pktmbuf_mtod(pkt[i],struct rte_ether_hdr*);
 		eth_hdr->dst_addr = d_addr;
@@ -236,30 +197,26 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 		pkt[i]->data_len = pkt_size;
 		pkt[i]->pkt_len = pkt_size;
 
-                if (is_vlan ==1){
-                        debug0("\nVlan Packet");
-	                /* ethernet type 802.1q */
+		if (is_vlan ==1) {
+			debug0("\nVlan Packet");
+			/* ethernet type 802.1q */
 			/* we create TSN packet using Vlan tag with highest priority */
 
 			struct rte_vlan_hdr *vh;
 			// Priority code point 7 (highest), 0 (default) 
 			uint16_t vlan_priority = 3; 
 			uint16_t vlan_id = VLAN_ID;
-	                uint16_t vlan_tag = (vlan_priority << 13) | vlan_id;
-	                uint16_t vlan_tag_be = rte_cpu_to_be_16(vlan_tag);
+			uint16_t vlan_tag = (vlan_priority << 13) | vlan_id;
+			uint16_t vlan_tag_be = rte_cpu_to_be_16(vlan_tag);
 			struct rte_ether_hdr *oh, *nh;
 
 			oh = rte_pktmbuf_mtod(pkt[i], struct rte_ether_hdr *);
-                        if (!oh){
-                           printf ("vlan oh pointer is null!");
-                           continue;  
-                        }
-                              
+
 			nh = (struct rte_ether_hdr *)rte_pktmbuf_prepend(pkt[i], sizeof(struct rte_vlan_hdr));
-                        if (!nh){
-			   printf ("vlan nh pointer is null!");
-                           continue;  
-                        }
+			if (!nh) {
+				printf("vlan nh pointer is null!");
+				continue;
+			}
 
 			memmove(nh, oh, 2 * RTE_ETHER_ADDR_LEN);
 			nh->ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_VLAN);
@@ -268,34 +225,30 @@ static int  construct_packet(struct rte_mbuf *pkt[], const int pkt_size)
 			vh->vlan_tci = vlan_tag_be;
 
 			pkt[i]->pkt_len = pkt_size + sizeof(struct rte_vlan_hdr);
-                }
-
-
+		}
 	}
-        
-        if (!eth_hdr) {
-            printf ("ERR: eth_hdr is null on packet idx %d",idx);   
-            return 0;
-        }
 
-        debug0("\nSending Packet (Timestamp:%s) SRC:%02X:%02X:%02X:%02X:%02X:%02X DST:%02X:%02X:%02X:%02X:%02X:%02X\n",
-                                msg->data, 
-                                eth_hdr->src_addr.addr_bytes[0],
-                                eth_hdr->src_addr.addr_bytes[1],
-                                eth_hdr->src_addr.addr_bytes[2],
-                                eth_hdr->src_addr.addr_bytes[3],
-                                eth_hdr->src_addr.addr_bytes[4],
-                                eth_hdr->src_addr.addr_bytes[5],
-                                eth_hdr->dst_addr.addr_bytes[0],
-                                eth_hdr->dst_addr.addr_bytes[1],
-                                eth_hdr->dst_addr.addr_bytes[2],
-                                eth_hdr->dst_addr.addr_bytes[3],
-                                eth_hdr->dst_addr.addr_bytes[4],
-                                eth_hdr->dst_addr.addr_bytes[5]
-                                );
-           
-        return 0;
+	if (!eth_hdr) {
+		printf ("ERR: eth_hdr is null on packet idx %d",idx);
+		return 0;
+	}
 
+	debug0("\nSending Packet (Timestamp:%s) SRC:%02X:%02X:%02X:%02X:%02X:%02X DST:%02X:%02X:%02X:%02X:%02X:%02X\n",
+			msg->data, 
+			eth_hdr->src_addr.addr_bytes[0],
+			eth_hdr->src_addr.addr_bytes[1],
+			eth_hdr->src_addr.addr_bytes[2],
+			eth_hdr->src_addr.addr_bytes[3],
+			eth_hdr->src_addr.addr_bytes[4],
+			eth_hdr->src_addr.addr_bytes[5],
+			eth_hdr->dst_addr.addr_bytes[0],
+			eth_hdr->dst_addr.addr_bytes[1],
+			eth_hdr->dst_addr.addr_bytes[2],
+			eth_hdr->dst_addr.addr_bytes[3],
+			eth_hdr->dst_addr.addr_bytes[4],
+			eth_hdr->dst_addr.addr_bytes[5] );
+
+	return 0;
 }
 
 static uint64_t get_time_sec(clockid_t clkid)
@@ -574,21 +527,19 @@ talker_parse_dst_mac(const char *q_arg)
   return n;
 }
 
-static int
+static void
 l2fwd_parse_debug(const char *q_arg)
 {
 	if (*q_arg == '1')
-             is_debug = 1;
+		is_debug = 1;
 	else
-	     is_debug = 0;
-
-        return 1;
+		is_debug = 0;
 }
 
 static int
 l2fwd_parse_ttl_pkt(const char *q_arg)
 {
-        char *end = NULL;
+	char *end = NULL;
 	int n;
 
 	/* parse number string */
@@ -597,28 +548,23 @@ l2fwd_parse_ttl_pkt(const char *q_arg)
 		return -1;
 
 	if (n > MX_PKT_SEND  || n == 0){
-                ttl_pkt_cnt = MX_PKT_SEND;
-                printf ("\nWARNING: Max Total Packet allowed to send is %d.\n", ttl_pkt_cnt);
+		ttl_pkt_cnt = MX_PKT_SEND;
+		printf ("\nWARNING: Max Total Packet allowed to send is %d.\n", ttl_pkt_cnt);
 		return -1;
-        }
+	}
 
-
-        ttl_pkt_cnt = n;
+	ttl_pkt_cnt = n;
 	return n;
 }
 
-static int
+static void
 l2fwd_parse_vlan (const char *q_arg)
 {
 	if (*q_arg == '1')
-             is_vlan = 1;
+		is_vlan = 1;
 	else
-	     is_vlan = 0;
-
-        return 1;
+		is_vlan = 0;
 }
-
-
 
 static const char short_options[] =
 	"p:"  /* portmask */
@@ -663,8 +609,8 @@ talker_parse_args(int argc, char **argv)
 	port_pair_params = NULL;
 
 	while ((opt = getopt_long(argc, argvopt, short_options,
-				  lgopts, &option_index)) != EOF) {
-
+					lgopts, &option_index)) != EOF)
+	{
 		switch (opt) {
 		/* portmask */
 		case 'p':
@@ -697,38 +643,33 @@ talker_parse_args(int argc, char **argv)
 			pkt_interval = interval_us;
 			break;
 
-                /* packet destination MAC address  */
+		/* packet destination MAC address  */
 		case 'd':
-                      ret  = talker_parse_dst_mac(optarg);
-                      if (ret){
+			if (talker_parse_dst_mac(optarg)) {
 				printf("invalid destination mac address, please use format as described (e.g. -d 08:00:1B:1A:12:A3)\n");
 				talker_usage(prgname);
 				return -1;
-
-
-		      }
-                      break;
-
-                /*debug option*/ 
-                case 'D':
-                        ret = l2fwd_parse_debug(optarg);
+			}
 			break;
 
-                /*total packet to be send*/ 
-                case 'c':
-                        ret = l2fwd_parse_ttl_pkt(optarg);
+		/*debug option*/
+		case 'D':
+			l2fwd_parse_debug(optarg);
 			break;
 
-                /*debug option*/ 
-                case 'v':
-                        ret = l2fwd_parse_vlan(optarg);
+		/*total packet to be send*/
+		case 'c':
+			l2fwd_parse_ttl_pkt(optarg);
 			break;
 
+		/*debug option*/
+		case 'v':
+			l2fwd_parse_vlan(optarg);
+			break;
 
-                /* long options */
+		/* long options */
 		case CMD_LINE_OPT_PORTMAP_NUM:
-			ret = talker_parse_port_pair_config(optarg);
-			if (ret) {
+			if (talker_parse_port_pair_config(optarg)) {
 				fprintf(stderr, "Invalid config\n");
 				talker_usage(prgname);
 				return -1;
