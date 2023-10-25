@@ -24,9 +24,9 @@ Kernel Parameters Requirement
 Please ensure both parameters added into Kernel boot:  
 iommu=pt intel_iommu=on
 
-DPDK 22.07
+DPDK 22.11
 ==========
-This branch is compatible with DPDK 22.07.  
+This branch is compatible with DPDK 22.11.  
 Please find other branches for different DPDK version compatible reference app.  
 DPDK library installation guide: https://core.dpdk.org/doc/quick-start/
 

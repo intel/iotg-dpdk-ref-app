@@ -4,12 +4,13 @@ ROOT_DIR=$(pwd)
 BUILD_DIR=$(pwd)/build
 LIBBPF_VERSION="0.7.0"
 LIBXDP_VERSION="1.2.8"
-LIBDPDK_VERSION="22.07"
+LIBDPDK_VERSION="22.11.3"
 
 rm -rf ${BUILD_DIR}
 mkdir ${BUILD_DIR}
 apt update
-apt install -y build-essential meson ninja-build python3-pyelftools libnuma-dev libelf-dev libarchive-dev gcc-multilib libpcap-dev clang llvm
+apt install -y build-essential meson ninja-build python3-pyelftools libnuma-dev libelf-dev \
+               libarchive-dev gcc-multilib libpcap-dev clang llvm curl m4
 
 # Download and build libbpf
 cd ${BUILD_DIR}
@@ -43,7 +44,7 @@ ldconfig
 cd ${BUILD_DIR}
 curl -L "http://fast.dpdk.org/rel/dpdk-${LIBDPDK_VERSION}.tar.xz" -o dpdk-${LIBDPDK_VERSION}.tar.xz
 tar xf dpdk-${LIBDPDK_VERSION}.tar.xz
-cd dpdk-${LIBDPDK_VERSION}
+cd dpdk-stable-${LIBDPDK_VERSION}
 meson setup build
 cd build
 ninja

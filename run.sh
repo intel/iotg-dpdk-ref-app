@@ -98,7 +98,7 @@ main() {
     # Check for <BOARD>
     if [ "$2" = "icx" -o "$2" = "tgl" ]; then
         echo "Platform is $2"
-    elif [ "$2" = "ehl" -o "$2" = "tglh" -o "$2" = "adl" -o "$2" = "tglh2" -o "$2" = "ehl2" -o "$2" = "adl2" -o "$2" = "rpl" ]; then
+    elif [ "$2" = "ehl" -o "$2" = "tglh" -o "$2" = "adl" -o "$2" = "rpl" -o "$2" = "asl" ]; then
         echo -e "Warning: This application is verified on Tgl-U platform.\n" \
                 "This application works irrespective of platforms and depends on NIC \n" \
                 "Please report if you see any issues with other platforms";

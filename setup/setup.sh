@@ -227,12 +227,12 @@ main()
         init_interface $IFACE
 
 	if [[ $MODE == "listener" ]]; then
-		if [[ $BOARD == "icx" || $BOARD == "adl" || $BOARD == "rpl" ]]; then
+		if [[ $BOARD == "icx" || $BOARD == "adl" || $BOARD == "rpl" || $BOARD == "asl" ]]; then
 			setup_mqprio $IFACE
 		fi
 
 	elif [[ $MODE == "talker" ]]; then
-		if [[ $BOARD == "icx" || $BOARD == "adl" || $BOARD == "rpl" ]]; then
+		if [[ $BOARD == "icx" || $BOARD == "adl" || $BOARD == "rpl" || $BOARD == "asl" ]]; then
 			setup_taprio $IFACE
 			setup_etf $IFACE
 		fi
