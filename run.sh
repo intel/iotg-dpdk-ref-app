@@ -235,6 +235,7 @@ main() {
                 ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1 &
             elif [ "$MODE" = "dual" ]; then
                 ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="talker1" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 0 &
+                sleep 1
                 ./talker/build/talker -l 3 -n 1 --vdev=net_af_xdp1,iface=$IFACE,start_queue=3 --file-prefix="talker2" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 1 &
             elif [ "$MODE" = "mix" ]; then
                 ./talker/build/talker -l 2 -n 1 --vdev=net_af_xdp0,iface=$IFACE,start_queue=0 --file-prefix="talker1" -- -p $PORTMASK -q $LCOREQ -T $TIME_PERIOD -d $DEST_MACADDR -c $SEND_PKTCNT -D $DEBUG -v 0 &
