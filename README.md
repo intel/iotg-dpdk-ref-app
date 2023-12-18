@@ -28,7 +28,12 @@ DPDK 22.11
 ==========
 This branch is compatible with DPDK 22.11.  
 Please find other branches for different DPDK version compatible reference app.  
-DPDK library installation guide: https://core.dpdk.org/doc/quick-start/
+DPDK library installation guide: https://core.dpdk.org/doc/quick-start/  
+
+Note: The version of the DPDK ref app and the corresponding open source software  
+components that are suggested for use with the DPDK ref app are only for reference purposes.  
+If you decide to use DPDK ref app, it is your responsibility to integrate the latest functional  
+and/or security updates when they are available from the open source community.  
 
 SETUP ENVIRONMENT
 ====================
