@@ -8,7 +8,7 @@ This application needs to be executed on 2 boards.
 
 Features of DPDK application:
 ============================
-1. Latency Calculation: This provides the latency of the packet: This is the time from the packet being transmitted to received.
+1. Latency Calculation: This provides the latency of the packet: This is the time from the packet being transmitted to being received.
 2. Provides an output file with latency graph.
 3. We can spawn two listeners and two talkers on different queues.
 4. Console output provides details like standard deviation, Jitter, Latency.Jitter output is displayed on console in master.
@@ -50,18 +50,18 @@ echo 256 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepage
 
 PTP CLOCK SYNC IN BOTH TALKER AND LISTENER MACHINES 
 ====================================================  
-Run following in TALKER machine and follow by LISTENER machine:  
+Run following in TALKER machine and followed by LISTENER machine:  
 sudo /ptp/time_sync.sh i225     
 
 Validate following in listener machine 
 --------------------------------------- 
 tail /var/log/ptp4l.log  
 test: 
-ptp4l.log => rms value must below than 100us 
+ptp4l.log => rms value must be below 100us 
 
 tail /var/log/phc2sys.log   
 test: 
-phc2sys => offset value must be below than 100us 
+phc2sys => offset value must be below 100us 
 
 Note: not all NIC with PTP feature, please check your NIC specification, you could ignore this section if not eligible.
 
@@ -72,7 +72,7 @@ PTP Hardware Clock: 0
 
 RUN LISTENER 
 ==========
-An executable program listen to all L2 (MAC/Ethernet level) broadcasting data frame
+An executable program that listens to all L2 (MAC/Ethernet level) broadcasting data frames
 
 compile:  
 make
@@ -107,7 +107,7 @@ Options
 
 RUN Talker 
 ==========
-An executable program receiving L2 (MAC/Ethernet level) data frame
+An executable program that transmits L2 (MAC/Ethernet level) data frames
 
 compile:  
 make
@@ -119,7 +119,7 @@ Run
 Options  
   -p PORTMASK: hexadecimal bitmask of ports to configure  
   -q NQ: number of queue (=ports) per lcore (default is 1)
-  -T PERIOD: packet will be transmit each PERIOD microseconds (must >=300us, 3000us by default, 5000000 max)
+  -T PERIOD: packet will be transmitted each PERIOD microseconds (must >=300us, 3000us by default, 5000000 max)
   -d Destination MAC address: use ':' format, for example, 08:00:27:cf:69:3e  
   -D [1,0] (1 to enable debug mode, 0 default disable debug mode)
   -c Total packet to be send to destination (100000 by default, max 2000000)
